@@ -1,0 +1,22 @@
+# Python build artifacts
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Local website runtime data
+网站/.cache/
+网站/runtime_results/
+网站/*.log
+拆笔画修改/拆笔画_修改/修改后的程序的结果/
+
+# Editor and operating-system metadata
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+~$*.docx
+
+# Non-curated scratch sample left by an earlier local run
+拆笔画修改/拆笔画_修改/data/小篆例/b017964d5380eb41459eeefc48ce7abb.png
+拆笔画修改/拆笔画_修改/原有程序的结果/experiment_v1/b017964d5380eb41459eeefc48ce7abb/
+拆笔画修改/拆笔画_修改/修改后的程序的结果/b017964d5380eb41459eeefc48ce7abb/
