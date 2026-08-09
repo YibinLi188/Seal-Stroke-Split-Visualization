@@ -138,6 +138,8 @@ def build_record(
         "source_name": input_path.name if input_path else record_id,
         "segment_count": int(payload.get("segment_count", len(strokes))),
         "overlap_pixel_count": int(payload.get("overlap_pixel_count", 0)),
+        "pixel_assignment": payload.get("pixel_assignment", "legacy-overlap"),
+        "stroke_order": payload.get("stroke_order", "legacy-order"),
         "width": width,
         "height": height,
         "input_url": f"{base_url}/input",
@@ -164,8 +166,17 @@ def ensure_demo_results() -> None:
             continue
         seen.add(sample_id)
         result_dir = RESULT_ROOT / sample_id
-        if (result_dir / "result.json").exists() and (result_dir / "binary.png").exists():
-            continue
+        result_file = result_dir / "result.json"
+        if result_file.exists() and (result_dir / "binary.png").exists():
+            try:
+                payload = load_result_payload(result_dir)
+                if (
+                    payload.get("pixel_assignment") == "exclusive-nearest-v1"
+                    and int(payload.get("overlap_pixel_count", 0)) == 0
+                ):
+                    continue
+            except (OSError, json.JSONDecodeError, ValueError):
+                pass
         try:
             result = split_character_image(str(input_path), WEB_CONFIG)
             save_result_artifacts(result, result_dir)

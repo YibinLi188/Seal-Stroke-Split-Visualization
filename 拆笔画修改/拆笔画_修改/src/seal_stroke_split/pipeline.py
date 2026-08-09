@@ -35,6 +35,8 @@ def split_character_image(image_path: str, config: SplitConfig | None = None) ->
         "segment_count": len(segments),
         "segment_lengths": [len(seg.points) for seg in segments],
         "overlap_pixel_count": overlap_pixels,
+        "pixel_assignment": "exclusive-nearest-v1",
+        "stroke_order": "top-to-bottom-horizontal-first-v1",
     }
     return SplitResult(
         binary=binary,
@@ -63,6 +65,8 @@ def save_result_artifacts(result: SplitResult, out_dir: Path) -> None:
         "segment_count": result.debug["segment_count"],
         "segment_lengths": result.debug["segment_lengths"],
         "overlap_pixel_count": result.debug["overlap_pixel_count"],
+        "pixel_assignment": result.debug.get("pixel_assignment", "exclusive-nearest-v1"),
+        "stroke_order": result.debug.get("stroke_order", "top-to-bottom-horizontal-first-v1"),
         "stroke_gallery": "strokes_gallery.png",
         "stroke_files": [f"strokes_individual/stroke_{idx:02d}.png" for idx in range(1, len(result.stroke_masks) + 1)],
         "segments": [

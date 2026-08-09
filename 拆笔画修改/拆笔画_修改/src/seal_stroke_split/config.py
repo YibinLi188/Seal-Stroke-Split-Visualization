@@ -15,7 +15,9 @@ class SplitConfig:
     max_endpoint_gap: float = 3.2
     tiny_segment_points: int = 6
     min_region_area: int = 10
-    overlap_margin: float = 1.35
+    # Retained for compatibility with earlier experiment arguments. Pixel
+    # assignment is now exclusive, so this value no longer enables sharing.
+    overlap_margin: float = 0.0
 
     def to_dict(self) -> dict:
         return asdict(self)

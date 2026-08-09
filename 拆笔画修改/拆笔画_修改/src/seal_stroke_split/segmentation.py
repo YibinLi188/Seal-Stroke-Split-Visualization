@@ -248,7 +248,37 @@ def segment_skeleton(skeleton: np.ndarray, config: SplitConfig) -> list[StrokeSe
     
     cleaned = absorb_tiny_segments(merged, config)             # ← 改了：用 merged 而不是 through
     
-    return [StrokeSegment(stroke_id=i + 1, points=path) for i, path in enumerate(cleaned)]
+    return order_segments_for_drawing(
+        [StrokeSegment(stroke_id=i + 1, points=path) for i, path in enumerate(cleaned)]
+    )
+
+
+def _stroke_order_key(segment: StrokeSegment) -> tuple[float, int, float, float, float, int]:
+    """Approximate a readable character writing order from segment geometry."""
+    points = np.asarray(segment.points, dtype=np.float32)
+    ys = points[:, 0]
+    xs = points[:, 1]
+    height = float(ys.max() - ys.min())
+    width = float(xs.max() - xs.min())
+    if width >= height * 1.4:
+        direction_rank = 0  # horizontal first
+    elif height >= width * 1.4:
+        direction_rank = 1  # then vertical
+    else:
+        direction_rank = 2  # diagonals and curves
+    return (
+        float(ys.min()),
+        direction_rank,
+        float(xs.min()),
+        float(ys.mean()),
+        float(xs.mean()),
+        -len(segment.points),
+    )
+
+
+def order_segments_for_drawing(segments: list[StrokeSegment]) -> list[StrokeSegment]:
+    ordered = sorted(segments, key=_stroke_order_key)
+    return [StrokeSegment(stroke_id=index, points=list(segment.points)) for index, segment in enumerate(ordered, start=1)]
 
 
 def _distance_maps(mask: np.ndarray, segments: list[StrokeSegment]) -> tuple[np.ndarray, np.ndarray]:
@@ -305,13 +335,8 @@ def assign_foreground_to_strokes(
     stroke_map[ys, xs] = nearest
     stroke_map = _reassign_tiny_regions(stroke_map, mask, config)
 
-    min_dist = np.min(distances, axis=0)
-    stroke_masks: list[np.ndarray] = []
-    for idx in range(len(segments)):
-        own_dist = distances[idx]
-        allow = own_dist <= (min_dist + config.overlap_margin)
-        stroke_mask = np.zeros(mask.shape, dtype=bool)
-        stroke_mask[ys, xs] = allow
-        stroke_masks.append(stroke_mask)
+    # Every foreground pixel belongs to exactly one stroke. The previous
+    # margin-based inclusion duplicated pixels near crossings.
+    stroke_masks = [stroke_map == (idx + 1) for idx in range(len(segments))]
 
     return stroke_map, stroke_masks

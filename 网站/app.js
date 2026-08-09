@@ -141,7 +141,7 @@ function loadRecord(record, sourceLabel) {
   state.step = record.strokes.length;
   viewerTitle.textContent = `${record.character} / ${record.segment_count} 笔`;
   viewerSubtitle.textContent = `${sourceLabel || record.source_name} · 可播放拆解过程`;
-  setResultNote(record.overlap_pixel_count ? `检测到 ${record.overlap_pixel_count} 个重叠像素` : "未检测到笔画重叠");
+  setResultNote(record.overlap_pixel_count ? `检测到 ${record.overlap_pixel_count} 个重叠像素` : "像素独占归属 · 按字形顺序回放");
   document.querySelectorAll(".mode-button").forEach((button) => button.classList.toggle("is-active", button.dataset.mode === "animate"));
   playButton.disabled = false;
   resetButton.disabled = false;

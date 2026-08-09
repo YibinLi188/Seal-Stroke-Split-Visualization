@@ -32,7 +32,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--through-angle-deg", type=float, default=32.0)
     parser.add_argument("--tiny-segment-points", type=int, default=6)
     parser.add_argument("--min-region-area", type=int, default=10)
-    parser.add_argument("--overlap-margin", type=float, default=1.35)
+    parser.add_argument("--overlap-margin", type=float, default=0.0, help="Deprecated: pixels are always exclusively assigned.")
     return parser.parse_args()
 
 

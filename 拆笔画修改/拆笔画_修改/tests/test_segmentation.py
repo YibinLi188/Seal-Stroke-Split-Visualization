@@ -10,7 +10,8 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 from seal_stroke_split.config import SplitConfig
-from seal_stroke_split.segmentation import segment_skeleton
+from seal_stroke_split.segmentation import assign_foreground_to_strokes, order_segments_for_drawing, segment_skeleton
+from seal_stroke_split.types import StrokeSegment
 
 
 class SegmentationTests(unittest.TestCase):
@@ -47,6 +48,30 @@ class SegmentationTests(unittest.TestCase):
             if max(y for y, _ in seg.points) - min(y for y, _ in seg.points) >= 7
         ]
         self.assertTrue(vertical_like)
+
+    def test_stroke_order_is_top_to_bottom_and_horizontal_first(self) -> None:
+        segments = [
+            StrokeSegment(1, [(1, 5), (4, 5)]),
+            StrokeSegment(2, [(1, 1), (1, 8)]),
+            StrokeSegment(3, [(4, 1), (7, 4)]),
+        ]
+        ordered = order_segments_for_drawing(segments)
+        self.assertEqual(ordered[0].points, [(1, 1), (1, 8)])
+        self.assertEqual(ordered[1].points, [(1, 5), (4, 5)])
+
+    def test_foreground_pixels_are_assigned_to_one_stroke_only(self) -> None:
+        mask = np.zeros((9, 9), dtype=bool)
+        mask[4, 1:8] = True
+        mask[1:8, 4] = True
+        segments = order_segments_for_drawing([
+            StrokeSegment(1, [(4, 1), (4, 7)]),
+            StrokeSegment(2, [(1, 4), (7, 4)]),
+        ])
+        stroke_map, stroke_masks = assign_foreground_to_strokes(mask, segments, SplitConfig())
+        counts = np.sum(np.stack(stroke_masks, axis=0), axis=0)
+        self.assertTrue(np.all(counts[mask] == 1))
+        self.assertTrue(np.all(stroke_map[mask] > 0))
+        self.assertEqual(int(counts.max()), 1)
 
 if __name__ == "__main__":
     unittest.main()

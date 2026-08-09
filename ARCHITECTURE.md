@@ -38,7 +38,7 @@
 - `result.json`: segment count, per-segment point/pixel counts and artifact paths.
 
 The web service turns each grayscale individual-stroke image into a cached transparent PNG with a deterministic palette.
-The browser overlays those transparent PNGs in sequence, so the animation represents the exact raster output rather than a redrawn approximation.
+The browser overlays those transparent PNGs in sequence, so the animation represents the exact raster output rather than a redrawn approximation. Since masks are derived from the final single-label `stroke_map`, a foreground pixel can appear in only one layer.
 
 ## Curated examples vs. uploads
 
