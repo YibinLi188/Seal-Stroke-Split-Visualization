@@ -42,7 +42,7 @@ python server.py
 
 ### 公共在线演示
 
-仓库通过 GitHub Pages 自动发布静态演示：
+仓库已通过 GitHub Pages 发布静态演示：
 <https://yibinli188.github.io/Seal-Stroke-Split-Visualization/>
 
 在线页面可以被多人同时打开，直接浏览 16 个内置样例、逐笔播放和结果总览。GitHub Pages
