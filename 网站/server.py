@@ -86,6 +86,19 @@ def image_size(path: Path) -> tuple[int, int]:
         return image.width, image.height
 
 
+def stroke_files_are_full_canvas(result_dir: Path, payload: dict) -> bool:
+    """Detect legacy cropped stroke artifacts and regenerate them once."""
+    binary_path = result_dir / "binary.png"
+    stroke_files = payload.get("stroke_files", [])
+    if not binary_path.exists() or not stroke_files:
+        return False
+    expected_size = image_size(binary_path)
+    try:
+        return all(image_size(result_dir / relative_path) == expected_size for relative_path in stroke_files)
+    except (OSError, ValueError):
+        return False
+
+
 def make_colored_stroke(source: Path, destination: Path, color: str) -> None:
     destination.parent.mkdir(parents=True, exist_ok=True)
     if destination.exists() and destination.stat().st_mtime >= source.stat().st_mtime:
@@ -104,15 +117,13 @@ def cache_strokes(cache_key: str, result_dir: Path, payload: dict) -> list[dict]
         source = result_dir / relative_path
         target = cache_dir / f"stroke_{index:02d}.png"
         make_colored_stroke(source, target, PALETTE[(index - 1) % len(PALETTE)])
+        segment = payload.get("segments", [])[index - 1] if index <= len(payload.get("segments", [])) else {}
         strokes.append(
             {
                 "id": index,
-                "point_count": payload.get("segments", [])[index - 1].get("point_count", 0)
-                if index <= len(payload.get("segments", []))
-                else 0,
-                "pixel_count": payload.get("segments", [])[index - 1].get("pixel_count", 0)
-                if index <= len(payload.get("segments", []))
-                else 0,
+                "point_count": segment.get("point_count", 0),
+                "pixel_count": segment.get("pixel_count", 0),
+                "points": segment.get("points", []),
                 "color": PALETTE[(index - 1) % len(PALETTE)],
                 "file": f"stroke_{index:02d}.png",
             }
@@ -129,7 +140,7 @@ def build_record(
 ) -> dict:
     binary_path = result_dir / "binary.png"
     width, height = image_size(binary_path)
-    strokes = cache_strokes(f"{kind}_{record_id}", result_dir, payload)
+    strokes = cache_strokes(f"draw-v2_{kind}_{record_id}", result_dir, payload)
     encoded_id = safe_public_id(record_id)
     base_url = f"/media/{kind}/{encoded_id}"
     return {
@@ -140,6 +151,7 @@ def build_record(
         "overlap_pixel_count": int(payload.get("overlap_pixel_count", 0)),
         "pixel_assignment": payload.get("pixel_assignment", "legacy-overlap"),
         "stroke_order": payload.get("stroke_order", "legacy-order"),
+        "render_mode": "path-reveal-v2",
         "width": width,
         "height": height,
         "input_url": f"{base_url}/input",
@@ -173,6 +185,7 @@ def ensure_demo_results() -> None:
                 if (
                     payload.get("pixel_assignment") == "exclusive-nearest-v1"
                     and int(payload.get("overlap_pixel_count", 0)) == 0
+                    and stroke_files_are_full_canvas(result_dir, payload)
                 ):
                     continue
             except (OSError, json.JSONDecodeError, ValueError):

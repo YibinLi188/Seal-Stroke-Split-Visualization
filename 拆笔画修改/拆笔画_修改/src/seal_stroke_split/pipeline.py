@@ -13,7 +13,6 @@ from .visualization import (
     render_binary,
     render_overlap_map,
     render_overlay,
-    render_single_stroke,
     render_stroke_gallery,
     render_stroke_map,
 )
@@ -60,7 +59,9 @@ def save_result_artifacts(result: SplitResult, out_dir: Path) -> None:
     render_overlap_map(result).save(out_dir / "overlap.png")
     render_stroke_gallery(result).save(out_dir / "strokes_gallery.png")
     for idx, stroke_mask in enumerate(result.stroke_masks, start=1):
-        render_single_stroke(stroke_mask).save(stroke_dir / f"stroke_{idx:02d}.png")
+        # Keep every stroke on the full cropped canvas so the web renderer can
+        # reveal it in place instead of scaling a cropped thumbnail.
+        render_binary(stroke_mask).save(stroke_dir / f"stroke_{idx:02d}.png")
     payload = {
         "segment_count": result.debug["segment_count"],
         "segment_lengths": result.debug["segment_lengths"],

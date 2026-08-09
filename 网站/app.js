@@ -79,6 +79,68 @@ function renderLegend() {
   });
 }
 
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+function svgElement(tag, attributes = {}) {
+  const element = document.createElementNS(SVG_NS, tag);
+  Object.entries(attributes).forEach(([name, value]) => element.setAttribute(name, value));
+  return element;
+}
+
+function makeStrokePath(points) {
+  if (!Array.isArray(points) || !points.length) return "";
+  return points
+    .filter((point) => Array.isArray(point) && point.length >= 2)
+    .map(([y, x], index) => `${index ? "L" : "M"} ${Number(x)} ${Number(y)}`)
+    .join(" ");
+}
+
+function estimateRevealWidth(stroke) {
+  const pointCount = Math.max(1, Number(stroke.point_count) || (stroke.points || []).length);
+  const pixelCount = Math.max(1, Number(stroke.pixel_count) || pointCount);
+  return Math.max(1.4, Math.min(5, (pixelCount / pointCount) * 1.05));
+}
+
+function appendStroke(svg, stroke, animate) {
+  const pathData = makeStrokePath(stroke.points);
+  if (!animate || !pathData) {
+    const image = svgElement("image", {
+      class: "stroke-image",
+      href: stroke.url,
+      x: 0,
+      y: 0,
+      width: state.record.width,
+      height: state.record.height,
+      preserveAspectRatio: "none",
+      "aria-label": `第 ${stroke.id} 笔`,
+    });
+    svg.appendChild(image);
+    return;
+  }
+
+  const revealPath = svgElement("path", {
+    class: "draw-path",
+    d: pathData,
+    fill: "none",
+    stroke: stroke.color,
+    "stroke-linecap": "round",
+    "stroke-linejoin": "round",
+  });
+  revealPath.style.strokeWidth = `${estimateRevealWidth(stroke)}px`;
+  svg.appendChild(revealPath);
+
+  requestAnimationFrame(() => {
+    const length = revealPath.getTotalLength();
+    if (!Number.isFinite(length) || length <= 0) {
+      return;
+    }
+    revealPath.style.strokeDasharray = `${length} ${length}`;
+    revealPath.style.strokeDashoffset = `${length}`;
+    revealPath.style.transition = `stroke-dashoffset ${Math.max(180, state.speed - 120)}ms linear`;
+    requestAnimationFrame(() => { revealPath.style.strokeDashoffset = "0"; });
+  });
+}
+
 function renderStage() {
   if (!state.record) return;
   viewerStage.innerHTML = "";
@@ -91,14 +153,17 @@ function renderStage() {
   const canvas = document.createElement("div");
   canvas.className = "stroke-canvas";
   canvas.style.setProperty("--canvas-ratio", `${state.record.width} / ${state.record.height}`);
-  state.record.strokes.forEach((stroke) => {
-    const image = document.createElement("img");
-    image.className = `stroke-layer${stroke.id === state.step ? " is-current" : ""}`;
-    image.src = stroke.url;
-    image.alt = `第 ${stroke.id} 笔`;
-    image.style.opacity = stroke.id <= state.step ? "1" : "0";
-    canvas.appendChild(image);
+  const svg = svgElement("svg", {
+    class: "stroke-drawing",
+    viewBox: `0 0 ${state.record.width} ${state.record.height}`,
+    preserveAspectRatio: "none",
+    role: "img",
+    "aria-label": `${state.record.character} 笔画书写过程`,
   });
+  state.record.strokes.forEach((stroke) => {
+    if (stroke.id <= state.step) appendStroke(svg, stroke, stroke.id === state.step);
+  });
+  canvas.appendChild(svg);
   viewerStage.appendChild(canvas);
 }
 
