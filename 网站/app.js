@@ -1,6 +1,8 @@
 const state = {
   examples: [],
   record: null,
+  staticMode: false,
+  staticData: null,
   mode: "animate",
   step: 0,
   playing: false,
@@ -25,12 +27,57 @@ const speedInput = document.querySelector("#speed-input");
 const speedValue = document.querySelector("#speed-value");
 const imageInput = document.querySelector("#image-input");
 const uploadZone = document.querySelector("#upload-zone");
+const runtimeStatus = document.querySelector(".runtime-status span:last-child");
+
+async function loadStaticData() {
+  if (!state.staticData) {
+    const response = await fetch("static-data.json", { cache: "no-store" });
+    if (!response.ok) throw new Error("公共演示数据加载失败");
+    state.staticData = await response.json();
+  }
+  return state.staticData;
+}
+
+function staticApiPayload(url) {
+  if (!state.staticData) return null;
+  if (url === "/api/examples") return { examples: state.staticData.examples };
+  const prefix = "/api/examples/";
+  if (url.startsWith(prefix)) {
+    const id = decodeURIComponent(url.slice(prefix.length));
+    return state.staticData.records[id] || null;
+  }
+  return null;
+}
+
+function enableStaticMode() {
+  state.staticMode = true;
+  runtimeStatus.textContent = "公共静态演示";
+  uploadZone.classList.add("is-static");
+  imageInput.disabled = true;
+  uploadZone.querySelector("strong").textContent = "公共演示暂不支持上传";
+  uploadZone.querySelector("small").textContent = "选择左侧已有样例即可查看逐笔动画";
+  uploadZone.querySelector(".upload-button").textContent = "仅浏览样例";
+}
 
 async function getJson(url, options) {
-  const response = await fetch(url, options);
-  const payload = await response.json();
-  if (!response.ok) throw new Error(payload.error || "请求失败");
-  return payload;
+  if (state.staticMode && (!options || !options.method)) {
+    const payload = staticApiPayload(url);
+    if (payload) return payload;
+  }
+  try {
+    const response = await fetch(url, options);
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || "请求失败");
+    return payload;
+  } catch (error) {
+    if (options && options.method) throw error;
+    if (!url.startsWith("/api/")) throw error;
+    const data = await loadStaticData();
+    enableStaticMode();
+    const payload = staticApiPayload(url);
+    if (payload) return payload;
+    throw error;
+  }
 }
 
 function setResultNote(text, isError = false) {
@@ -230,6 +277,10 @@ async function loadExample(id, button) {
 
 async function uploadImage(file) {
   if (!file) return;
+  if (state.staticMode) {
+    setResultNote("当前是公共静态演示，请选择已有样例；上传分析需要本地 Python 服务。", true);
+    return;
+  }
   const formData = new FormData();
   formData.append("image", file);
   uploadZone.classList.add("is-uploading");
@@ -274,8 +325,8 @@ async function init() {
       await loadExample(state.examples[0].id, firstButton);
     }
   } catch (error) {
-    exampleList.innerHTML = `<p class="loading-line">无法连接本地服务：${error.message}</p>`;
-    setResultNote("请确认已用 python server.py 启动网站", true);
+    exampleList.innerHTML = `<p class="loading-line">无法加载示例：${error.message}</p>`;
+    setResultNote("请确认网络正常，或在本地用 python server.py 启动完整分析模式", true);
   }
 }
 

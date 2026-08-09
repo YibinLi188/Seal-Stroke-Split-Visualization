@@ -40,6 +40,15 @@ python server.py
 > **不能直接双击 `index.html`。** 上传图片需要请求本地 `POST /api/analyze`，只有通过
 > `server.py` 启动时才会调用 Python 拆笔画算法。
 
+### 公共在线演示
+
+仓库通过 GitHub Pages 自动发布静态演示：
+<https://yibinli188.github.io/Seal-Stroke-Split-Visualization/>
+
+在线页面可以被多人同时打开，直接浏览 16 个内置样例、逐笔播放和结果总览。GitHub Pages
+不能运行 Python，因此公共页面的上传按钮会提示使用本地完整模式；需要上传分析时请按上面的
+`server.py` 方式启动，或把后端部署到支持 Python 的云平台。
+
 ### 验证服务
 
 ```bash
@@ -126,6 +135,9 @@ requirements.txt                Python 依赖
   index.html                    页面结构
   styles.css                    响应式界面样式
   app.js                        样例加载、上传、回放和交互状态
+  static-data.json              GitHub Pages 公共演示的样例数据
+  assets/                       公共演示所需的样例图片与彩色笔画
+  build_static.py               从算法结果生成静态演示数据
   server.py                     静态服务、样例索引与上传分析接口
   启动网站.bat                  Windows 双击启动入口
 拆笔画修改/
@@ -170,3 +182,4 @@ python -m py_compile server.py
 - 上传结果保存在本机 `网站/runtime_results/`，重启后不作为内置样例永久展示。
 - 首次启动可能需要几秒钟生成 16 个内置样例的结果；生成后会直接复用本地结果目录。
 - 页面只提供可视化与回放，不在浏览器内编辑算法输出；需要修改分段策略时应从核心包和测试开始。
+- GitHub Pages 是静态托管，只提供内置样例演示；实时上传分析需要 Python 后端。

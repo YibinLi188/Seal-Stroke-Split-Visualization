@@ -73,6 +73,9 @@ h1 { max-width: 690px; margin-bottom: 20px; font-size: 48px; font-weight: 850; }
 .panel-count { color: var(--muted); font-size: 12px; font-weight: 800; }
 .upload-zone { display: flex; flex-direction: column; align-items: flex-start; min-height: 180px; margin: 24px 0 26px; padding: 20px; border: 1px dashed #bfb8aa; background: #faf8f1; }
 .upload-zone:hover, .upload-zone.is-dragging { border-color: var(--red); background: #f9ede7; }
+.upload-zone.is-static { cursor: default; opacity: .78; }
+.upload-zone.is-static:hover { border-color: #bfb8aa; background: #faf8f1; }
+.upload-zone.is-static .upload-button { color: var(--muted); background: var(--soft-line); }
 .upload-zone input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
 .upload-glyph { margin-bottom: 17px; color: var(--red); font-size: 30px; font-weight: 300; line-height: 1; }
 .upload-zone strong { margin-bottom: 7px; font-size: 14px; }
