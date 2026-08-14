@@ -97,8 +97,8 @@
     window.GlyphUI.renderSimilar(relations, selectGlyph);
     window.GraphRenderer.render(document.querySelector("#relationGraph"), glyph, relations, selectGlyph);
     document.querySelector("#graphSummary").textContent = relations.length
-      ? `当前展示 ${relations.length} 个候选关系。关系由笔段数量、长度序列与重叠情况自动推断，供人工核对。`
-      : "当前筛选下暂无候选关系。可切换关系筛选或补充人工关系数据。";
+      ? `当前展示 ${relations.length} 个可能相近的字形，供观察和讨论。`
+      : "当前筛选下暂未找到相近字形。可切换筛选方式再看看。";
   }
 
   document.querySelector("#glyphSearch").addEventListener("input", (event) => {

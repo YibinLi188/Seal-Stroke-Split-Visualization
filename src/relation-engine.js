@@ -19,12 +19,12 @@
 
   function describeRelation(glyph, candidate, distance) {
     if (glyph.metrics.lengths.join(",") === candidate.metrics.lengths.join(",")) {
-      return { type: "sequence", label: "序列一致", score: 100 };
+      return { type: "sequence", label: "笔画顺序一致", score: 100 };
     }
     if (glyph.metrics.segmentCount === candidate.metrics.segmentCount) {
-      return { type: "segments", label: `同为 ${glyph.metrics.segmentCount} 段`, score: 76 - distance * 28 };
+      return { type: "segments", label: `同为 ${glyph.metrics.segmentCount} 笔`, score: 76 - distance * 28 };
     }
-    return { type: "segments", label: "段数接近", score: 58 - distance * 24 };
+    return { type: "segments", label: "笔画数量接近", score: 58 - distance * 24 };
   }
 
   function relatedGlyphs(glyphs, glyph, limit = 6) {

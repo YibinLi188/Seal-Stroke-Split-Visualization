@@ -1,13 +1,8 @@
 (() => {
   const VIEW_MODES = [
-    ["original", "原始字形", "原始输入图像"],
-    ["replay", "笔段回放", "按候选笔段顺序重现字形"],
-    ["composite", "笔段合成", "自动拆解的彩色笔段"],
-    ["gallery", "笔段总览", "全部候选笔段"],
-    ["binary", "二值图", "二值化后的字形"],
-    ["skeleton", "骨架", "单像素骨架"],
-    ["overlay", "叠加检查", "候选笔段与字形叠加"],
-    ["overlap", "重叠检查", "笔段重叠区域"],
+    ["original", "原字", "观察原始字形"],
+    ["replay", "逐笔书写", "按顺序观看字形写成"],
+    ["composite", "笔画拆解", "观察字形由哪些笔画组成"],
   ];
   const SVG_NS = "http://www.w3.org/2000/svg";
 
@@ -72,7 +67,7 @@
       button.className = `glyph-item${glyph.id === selectedId ? " is-active" : ""}`;
       button.innerHTML = `
         <span class="glyph-item-mark">${escapeHtml(glyph.mark)}</span>
-        <span class="glyph-item-copy"><strong>${escapeHtml(glyph.title)}</strong><small>${glyph.metrics.segmentCount} 个候选笔段</small></span>
+        <span class="glyph-item-copy"><strong>${escapeHtml(glyph.title)}</strong><small>${glyph.metrics.segmentCount} 笔</small></span>
         <span class="glyph-item-id">${escapeHtml(glyph.sourceId)}</span>`;
       button.addEventListener("click", () => onSelect(glyph.id));
       container.append(button);
@@ -159,8 +154,8 @@
           mask: `url(#${maskId})`,
         }));
         caption.textContent = replayStep
-          ? `正在书写第 ${replayStep} 个候选笔段`
-          : "从第一个候选笔段开始书写";
+          ? `正在书写第 ${replayStep} 笔`
+          : "从第一笔开始书写";
       }
       replayCanvas.append(svg);
       return;
@@ -168,8 +163,8 @@
 
     if (selectedSegment) {
       image.src = selectedSegment.image;
-      image.alt = `${glyph.title} 的第 ${selectedSegment.id} 个候选笔段`;
-      caption.textContent = `第 ${selectedSegment.id} 个候选笔段`;
+      image.alt = `${glyph.title} 的第 ${selectedSegment.id} 笔`;
+      caption.textContent = `第 ${selectedSegment.id} 笔`;
       return;
     }
     const view = VIEW_MODES.find(([key]) => key === selectedView) || VIEW_MODES[0];
@@ -182,7 +177,7 @@
     const controls = document.querySelector("#playbackControls");
     controls.hidden = selectedView !== "replay";
     if (controls.hidden) return;
-    document.querySelector("#replayProgress").textContent = `${replayStep} / ${glyph.segments.length} 段`;
+    document.querySelector("#replayProgress").textContent = `${replayStep} / ${glyph.segments.length} 笔`;
     document.querySelector("#replayPlay").textContent = isPlaying ? "暂停" : "播放";
     document.querySelector("#replayPrevious").disabled = replayStep === 0;
     document.querySelector("#replayNext").disabled = replayStep >= glyph.segments.length;
@@ -191,10 +186,8 @@
 
   function renderMetrics(glyph) {
     const metrics = [
-      ["候选笔段", `${glyph.metrics.segmentCount} 段`],
-      ["骨架长度", `${glyph.metrics.lengths.reduce((total, value) => total + value, 0)} 点`],
-      ["重叠像素", `${glyph.metrics.overlapPixels} px`],
-      ["实验版本", glyph.source.experiment],
+      ["笔画数量", `${glyph.metrics.segmentCount} 笔`],
+      ["观察方式", "可逐笔观看"],
     ];
     document.querySelector("#metricStrip").innerHTML = metrics
       .map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`)
@@ -210,7 +203,7 @@
       button.className = `segment-button${selectedSegment && selectedSegment.id === segment.id ? " is-active" : ""}`;
       button.innerHTML = `
         <span class="segment-thumb"><img src="${encodeURI(segment.image)}" alt="" /></span>
-        <span class="segment-copy"><strong>第 ${segment.id} 个笔段</strong><small>骨架点数 ${segment.pointCount}${segment.pixelCount ? ` · 像素 ${segment.pixelCount}` : ""}</small></span>`;
+        <span class="segment-copy"><strong>第 ${segment.id} 笔</strong><small>点击查看这一笔</small></span>`;
       button.addEventListener("click", () => onSelect(segment));
       container.append(button);
     });
@@ -219,20 +212,16 @@
   function renderRecord(glyph) {
     setText("#glyphSource", `${glyph.source.collection} · ${glyph.source.section}`);
     setText("#glyphTitle", glyph.title);
-    setText("#glyphUnicode", glyph.unicode);
-    setText("#reviewStatus", glyph.reviewStatus);
     setText("#glyphDefinition", glyph.definition);
-    setText("#formationNote", glyph.formation);
+    setText("#formationNote", glyph.formation.includes("待") ? "这部分结构说明仍在整理中。" : glyph.formation);
     document.querySelector("#sourceDetails").innerHTML = [
       ["材料", glyph.source.collection],
       ["分部", glyph.source.section],
-      ["样本", glyph.source.originalFile],
-      ["实验", glyph.source.experiment],
     ].map(([term, definition]) => `<div><dt>${escapeHtml(term)}</dt><dd>${escapeHtml(definition)}</dd></div>`).join("");
 
     const components = document.querySelector("#componentList");
     if (!glyph.components.length) {
-      components.innerHTML = '<p class="empty-state compact">尚未登记人工部件。可先以“候选笔段”观察字形，再由团队补充构形标签。</p>';
+      components.innerHTML = '<p class="empty-state compact">这一字形的部件说明仍在整理中。</p>';
       return;
     }
     components.innerHTML = glyph.components.map((component) => `
@@ -257,7 +246,7 @@
   }
 
   function renderDatasetStatus(dataset) {
-    setText("#datasetStatus", `${dataset.version} 实验 · ${dataset.count} 个字形样本`);
+    setText("#datasetStatus", `${dataset.count} 个字形`);
     setText("#glyphCount", `${dataset.count} 个`);
   }
 
