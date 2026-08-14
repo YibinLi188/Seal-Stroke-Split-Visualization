@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="面向小篆字形、笔画拆解与字形关系的协作式浏览器。" />
+    <title>古文字结构互动系统</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="#workspace" aria-label="回到字形工作台">
+        <span class="brand-mark">古</span>
+        <span>
+          <strong>古文字结构互动系统</strong>
+          <small>小篆笔画拆解与字形关系</small>
+        </span>
+      </a>
+      <div class="dataset-status" id="datasetStatus" aria-live="polite"></div>
+    </header>
+
+    <main class="app-shell" id="workspace">
+      <aside class="catalog-panel" aria-label="字形目录">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">字形目录</p>
+            <h1>选择一个字形</h1>
+          </div>
+          <span class="count-pill" id="glyphCount"></span>
+        </div>
+        <label class="search-field" for="glyphSearch">
+          <span>搜索</span>
+          <input id="glyphSearch" type="search" placeholder="字形、编号或来源" autocomplete="off" />
+        </label>
+        <label class="filter-field" for="catalogFilter">
+          <span>显示</span>
+          <select id="catalogFilter">
+            <option value="all">全部样本</option>
+            <option value="review">待人工校释</option>
+            <option value="two-to-four">2-4 段</option>
+            <option value="five-plus">5 段以上</option>
+          </select>
+        </label>
+        <div class="glyph-list" id="glyphList" role="list"></div>
+      </aside>
+
+      <section class="workspace-panel" aria-label="字形观察工作台">
+        <div class="glyph-header">
+          <div>
+            <p class="eyebrow" id="glyphSource">来源</p>
+            <h2 id="glyphTitle">字形</h2>
+          </div>
+          <div class="glyph-identity">
+            <span id="glyphUnicode"></span>
+            <span class="review-pill" id="reviewStatus"></span>
+          </div>
+        </div>
+
+        <div class="view-tabs" id="viewTabs" role="tablist" aria-label="字形图层"></div>
+        <div class="glyph-stage" id="glyphStage">
+          <img id="glyphImage" alt="所选字形的拆解图" />
+          <p id="imageCaption"></p>
+        </div>
+        <div class="metric-strip" id="metricStrip"></div>
+
+        <section class="candidate-section" aria-labelledby="segmentsTitle">
+          <div class="section-title-row">
+            <div>
+              <p class="eyebrow">自动结果</p>
+              <h3 id="segmentsTitle">候选笔段</h3>
+            </div>
+            <span class="status-note">点击任一笔段可单独查看</span>
+          </div>
+          <div class="segments-list" id="segmentsList"></div>
+        </section>
+      </section>
+
+      <aside class="record-panel" aria-label="字形资料与结构信息">
+        <section>
+          <p class="eyebrow">字形资料</p>
+          <h2>释义与来源</h2>
+          <p id="glyphDefinition" class="prose"></p>
+          <dl class="source-details" id="sourceDetails"></dl>
+        </section>
+
+        <section>
+          <p class="eyebrow">结构观察</p>
+          <h2>部件与构形</h2>
+          <p id="formationNote" class="prose"></p>
+          <div class="component-list" id="componentList"></div>
+        </section>
+
+        <section class="similar-section">
+          <div class="section-title-row">
+            <div>
+              <p class="eyebrow">系统建议</p>
+              <h2>相似字形</h2>
+            </div>
+            <label class="relation-filter" for="relationFilter">
+              <span class="sr-only">关系筛选</span>
+              <select id="relationFilter">
+                <option value="all">全部</option>
+                <option value="sequence">序列相近</option>
+                <option value="segments">段数接近</option>
+              </select>
+            </label>
+          </div>
+          <div class="similar-list" id="similarList"></div>
+        </section>
+      </aside>
+    </main>
+
+    <section class="relations-section" aria-labelledby="relationTitle">
+      <div class="relations-heading">
+        <div>
+          <p class="eyebrow">关系浏览</p>
+          <h2 id="relationTitle">字形关系图</h2>
+        </div>
+        <p id="graphSummary">关系由笔段数量和长度序列自动推断，供人工核对。</p>
+      </div>
+      <div class="graph-shell" id="relationGraph" aria-label="字形关系图"></div>
+      <p class="graph-legend"><span class="legend-line"></span> 点击图中的字形可切换观察对象；连线表示待核对的形体接近度。</p>
+    </section>
+
+    <footer class="site-footer">
+      <span>自动拆解结果是研究线索，不等同于已确认的文字学结论。</span>
+      <span>团队维护入口：<code>data/glyph-notes.json</code>、<code>scripts/import_experiment.py</code></span>
+    </footer>
+
+    <script src="./data/glyphs.js"></script>
+    <script src="./src/relation-engine.js"></script>
+    <script src="./src/graph-renderer.js"></script>
+    <script src="./src/ui.js"></script>
+    <script src="./src/app.js"></script>
+  </body>
+</html>
