@@ -57,8 +57,28 @@
         </div>
 
         <div class="view-tabs" id="viewTabs" role="tablist" aria-label="字形图层"></div>
+        <div class="playback-controls" id="playbackControls" hidden>
+          <div class="playback-status">
+            <span>笔段回放</span>
+            <strong id="replayProgress">0 / 0 段</strong>
+          </div>
+          <div class="playback-actions">
+            <button type="button" id="replayPlay">播放</button>
+            <button type="button" id="replayReset">复位</button>
+            <button type="button" id="replayPrevious">上一段</button>
+            <button type="button" id="replayNext">下一段</button>
+            <label for="replaySpeed">速度
+              <select id="replaySpeed">
+                <option value="1200">慢</option>
+                <option value="800" selected>中</option>
+                <option value="450">快</option>
+              </select>
+            </label>
+          </div>
+        </div>
         <div class="glyph-stage" id="glyphStage">
           <img id="glyphImage" alt="所选字形的拆解图" />
+          <div class="replay-canvas" id="replayCanvas" hidden></div>
           <p id="imageCaption"></p>
         </div>
         <div class="metric-strip" id="metricStrip"></div>

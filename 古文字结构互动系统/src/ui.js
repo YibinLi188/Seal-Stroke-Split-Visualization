@@ -1,6 +1,7 @@
 (() => {
   const VIEW_MODES = [
     ["original", "原始字形", "原始输入图像"],
+    ["replay", "笔段回放", "按候选笔段顺序重现字形"],
     ["composite", "笔段合成", "自动拆解的彩色笔段"],
     ["gallery", "笔段总览", "全部候选笔段"],
     ["binary", "二值图", "二值化后的字形"],
@@ -65,9 +66,34 @@
     });
   }
 
-  function renderImage(glyph, selectedView, selectedSegment) {
+  function renderImage(glyph, selectedView, selectedSegment, replayStep) {
     const image = document.querySelector("#glyphImage");
+    const replayCanvas = document.querySelector("#replayCanvas");
     const caption = document.querySelector("#imageCaption");
+    const isReplay = selectedView === "replay" && !selectedSegment;
+    image.hidden = isReplay;
+    replayCanvas.hidden = !isReplay;
+
+    if (isReplay) {
+      replayCanvas.replaceChildren();
+      const reference = document.createElement("img");
+      reference.className = "replay-reference";
+      reference.src = encodeURI(glyph.assets.original);
+      reference.alt = "";
+      replayCanvas.append(reference);
+      glyph.segments.slice(0, replayStep).forEach((segment, index) => {
+        const layer = document.createElement("img");
+        layer.className = `replay-layer${index === replayStep - 1 ? " is-latest" : ""}`;
+        layer.src = encodeURI(segment.image);
+        layer.alt = "";
+        replayCanvas.append(layer);
+      });
+      caption.textContent = replayStep
+        ? `已呈现前 ${replayStep} 个候选笔段`
+        : "从第一个候选笔段开始回放";
+      return;
+    }
+
     if (selectedSegment) {
       image.src = selectedSegment.image;
       image.alt = `${glyph.title} 的第 ${selectedSegment.id} 个候选笔段`;
@@ -78,6 +104,17 @@
     image.src = glyph.assets[view[0]];
     image.alt = `${glyph.title}：${view[1]}`;
     caption.textContent = view[2];
+  }
+
+  function renderPlaybackControls(glyph, selectedView, replayStep, isPlaying, replayDelay) {
+    const controls = document.querySelector("#playbackControls");
+    controls.hidden = selectedView !== "replay";
+    if (controls.hidden) return;
+    document.querySelector("#replayProgress").textContent = `${replayStep} / ${glyph.segments.length} 段`;
+    document.querySelector("#replayPlay").textContent = isPlaying ? "暂停" : "播放";
+    document.querySelector("#replayPrevious").disabled = replayStep === 0;
+    document.querySelector("#replayNext").disabled = replayStep >= glyph.segments.length;
+    document.querySelector("#replaySpeed").value = String(replayDelay);
   }
 
   function renderMetrics(glyph) {
@@ -156,6 +193,7 @@
     renderCatalog,
     renderTabs,
     renderImage,
+    renderPlaybackControls,
     renderMetrics,
     renderSegments,
     renderRecord,
