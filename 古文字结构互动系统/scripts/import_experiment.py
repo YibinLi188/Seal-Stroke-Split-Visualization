@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import json
 import shutil
+import struct
 from pathlib import Path
 
 
@@ -48,6 +49,15 @@ def glyph_code(mark: str) -> str:
     return f"U+{ord(mark):04X}"
 
 
+def png_dimensions(path: Path) -> tuple[int, int]:
+    """Read the dimensions from a PNG header without adding an image dependency."""
+    with path.open("rb") as handle:
+        header = handle.read(24)
+    if header[:8] != b"\x89PNG\r\n\x1a\n" or header[12:16] != b"IHDR":
+        raise ValueError(f"Expected a PNG file: {path}")
+    return struct.unpack(">II", header[16:24])
+
+
 def build_glyph(entry: dict, experiment: Path, source_images: Path, version: str, notes: dict) -> dict:
     source_id, mark, source_name = parse_glyph_name(entry["image"])
     folder = Path(entry["image"]).stem
@@ -69,6 +79,7 @@ def build_glyph(entry: dict, experiment: Path, source_images: Path, version: str
         "overlap": relative_asset(asset_root / "overlap.png"),
         "gallery": relative_asset(asset_root / result["stroke_gallery"]),
     }
+    canvas_width, canvas_height = png_dimensions(asset_root / "binary.png")
     segments = []
     for index, segment in enumerate(result.get("segments", [])):
         stroke_file = result.get("stroke_files", [])[index]
@@ -77,6 +88,7 @@ def build_glyph(entry: dict, experiment: Path, source_images: Path, version: str
                 "id": segment.get("stroke_id", index + 1),
                 "pointCount": segment.get("point_count", entry["segment_lengths"][index]),
                 "pixelCount": segment.get("pixel_count"),
+                "points": segment.get("points", []),
                 "image": relative_asset(asset_root / stroke_file),
             }
         )
@@ -101,6 +113,10 @@ def build_glyph(entry: dict, experiment: Path, source_images: Path, version: str
             "segmentCount": result["segment_count"],
             "overlapPixels": result.get("overlap_pixel_count", 0),
             "lengths": result["segment_lengths"],
+        },
+        "canvas": {
+            "width": canvas_width,
+            "height": canvas_height,
         },
         "segments": segments,
         "assets": files,

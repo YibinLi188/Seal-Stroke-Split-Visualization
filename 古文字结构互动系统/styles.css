@@ -113,14 +113,7 @@ h3 { font-size: 18px; }
 .glyph-stage > img[hidden] { display: none; }
 .replay-canvas { position: relative; width: min(100%, 470px); height: 340px; overflow: hidden; }
 .replay-canvas[hidden] { display: none; }
-.replay-canvas img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
-.replay-reference { opacity: .12; filter: grayscale(1); }
-.replay-layer { image-rendering: pixelated; }
-.replay-layer.is-latest { animation: stroke-reveal 320ms ease-out both; }
-@keyframes stroke-reveal {
-  from { opacity: 0; transform: scale(.97); }
-  to { opacity: 1; transform: scale(1); }
-}
+.replay-canvas svg { display: block; width: 100%; height: 100%; }
 .glyph-stage p { position: absolute; right: 10px; bottom: 8px; margin: 0; padding: 4px 7px; color: var(--muted); background: rgb(255 253 248 / 90%); font-family: "Noto Sans SC", "Microsoft YaHei", sans-serif; font-size: 11px; }
 .metric-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid var(--line); }
 .metric-strip div { min-width: 0; padding: 10px 11px; border-right: 1px solid var(--line); }

@@ -12,6 +12,7 @@
     replayDelay: 800,
     isPlaying: false,
     replayTimer: null,
+    replayFinished: false,
   };
 
   function selectedGlyph() {
@@ -25,6 +26,7 @@
     state.selectedView = "original";
     state.selectedSegment = null;
     state.replayStep = 0;
+    state.replayFinished = false;
     render();
   }
 
@@ -45,8 +47,12 @@
     if (!state.isPlaying) return;
     state.replayTimer = window.setTimeout(() => {
       const glyph = selectedGlyph();
-      state.replayStep = Math.min(state.replayStep + 1, glyph.segments.length);
-      if (state.replayStep >= glyph.segments.length) state.isPlaying = false;
+      if (state.replayStep < glyph.segments.length) {
+        state.replayStep += 1;
+      } else {
+        state.isPlaying = false;
+        state.replayFinished = true;
+      }
       render();
       scheduleReplay();
     }, state.replayDelay);
@@ -62,6 +68,7 @@
     state.selectedView = "replay";
     state.selectedSegment = null;
     if (state.replayStep >= glyph.segments.length) state.replayStep = 0;
+    state.replayFinished = false;
     state.isPlaying = true;
     render();
     scheduleReplay();
@@ -72,6 +79,7 @@
     state.selectedView = "replay";
     state.selectedSegment = null;
     state.replayStep = Math.max(0, Math.min(step, selectedGlyph().segments.length));
+    state.replayFinished = state.replayStep >= selectedGlyph().segments.length;
     render();
   }
 
@@ -81,7 +89,7 @@
     const relations = window.RelationEngine.filterRelations(allRelations, state.relationFilter);
     window.GlyphUI.renderCatalog(glyphs, state.selectedId, state.query, state.catalogFilter, selectGlyph);
     window.GlyphUI.renderTabs(glyph, state.selectedView, state.selectedSegment, setView);
-    window.GlyphUI.renderImage(glyph, state.selectedView, state.selectedSegment, state.replayStep);
+    window.GlyphUI.renderImage(glyph, state.selectedView, state.selectedSegment, state.replayStep, state.replayFinished);
     window.GlyphUI.renderPlaybackControls(glyph, state.selectedView, state.replayStep, state.isPlaying, state.replayDelay);
     window.GlyphUI.renderMetrics(glyph);
     window.GlyphUI.renderSegments(glyph, state.selectedSegment, (segment) => setView("segment", segment));
