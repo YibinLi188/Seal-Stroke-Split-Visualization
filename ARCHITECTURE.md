@@ -1,59 +1,40 @@
-# Architecture
+# 协作架构
 
-## Data flow
+这个项目借鉴了 Laddergraph Visualization 的核心做法：将数据、计算、图形渲染和界面状态分离，使多人可以围绕清晰边界协作。
 
-```text
-内置 data/*.png ─┐
-                 ├─ split_character_image(...) ─┬─ binary.png
-上传 image file ─┘                               ├─ overlay.png
-                                                 ├─ strokes_individual/stroke_*.png
-                                                 └─ result.json
-                                                        │
-已有结果目录 ── load_demo_index() ──────────────────────┤
-上传结果目录 ── RUNTIME_INDEX ──────────────────────────┤
-                                                        ▼
-                                           JSON API + /media resources
-                                                        ▼
-                                      app.js colored stroke replay layers
+## 分层
+
+- `data/glyph-notes.json`：人工知识层。只放可追溯的释义、部件、构形与审核状态；不要把自动算法结果手工复制到这里。
+- `scripts/import_experiment.py`：实验导入层。读取一版算法输出、复制发布所需图片，并生成 `data/glyphs.js`。
+- `src/relation-engine.js`：关系规则层。不访问页面元素；只计算候选相似字形及其理由。
+- `src/graph-renderer.js`：图形视图层。只将关系数据绘制为 SVG，并向上层报告点击的节点。
+- `src/ui.js`：界面视图层。只更新目录、详情、候选笔段和资料面板。
+- `src/app.js`：薄控制器。保存当前选择、筛选状态，并协调上述模块。
+- `index.html` / `styles.css`：页面结构与样式。
+
+## 推荐分工
+
+- 资料研究成员维护 `data/glyph-notes.json`，并在拉取请求中注明文献来源与核对日期。
+- 算法成员维护实验工程，输出稳定的 `summary.json` 与每字 `result.json`，随后运行导入脚本。
+- 前端成员维护 `src/ui.js`、`src/graph-renderer.js` 与 `styles.css`。
+- 方法成员维护 `src/relation-engine.js`，每次调整相似关系规则时写明算法依据。
+
+## 数据规则
+
+- `data/glyphs.js` 是生成文件，不要直接手改。
+- 自动拆解字段使用“候选笔段”“自动建议”等表述，避免与人工确认部件混淆。
+- 一项人工释义或构形结论没有出处时，状态应保持“待校释”或“待核”。
+- 需要添加人工确认的字间关系时，建议先扩展独立的 `data/manual-relations.json`，再在关系规则层合并；不要把关系硬写入页面代码。
+
+## 检查
+
+每次改动至少检查：
+
+```powershell
+node --check .\src\relation-engine.js
+node --check .\src\graph-renderer.js
+node --check .\src\ui.js
+node --check .\src\app.js
 ```
 
-## Boundaries
-
-| Area | Entry point | Responsibility |
-| --- | --- | --- |
-| Algorithm | `src/seal_stroke_split/pipeline.py` | Image preparation, skeleton segmentation, pixel reassignment and artifact generation |
-| CLI experiment | `scripts/run_experiment.py` | Run the algorithm over local files and save artifacts |
-| Local HTTP layer | `网站/server.py` | Index curated demos, validate uploads, run the pipeline, serve JSON and images |
-| Browser state | `网站/app.js` | Load API records, replay layers, manage controls and upload state |
-| Browser layout | `网站/index.html`, `网站/styles.css` | Visual hierarchy and responsive presentation |
-
-## Result contract
-
-`save_result_artifacts(...)` emits the data consumed by the website:
-
-- `binary.png`: cropped binary foreground image.
-- `overlay.png`: algorithm output overlay.
-- `strokes_gallery.png`: grid overview of all individual strokes.
-- `strokes_individual/stroke_XX.png`: grayscale bitmap for one stroke.
-- `result.json`: segment count, per-segment point/pixel counts and artifact paths.
-
-The web service turns each grayscale individual-stroke image into a cached transparent PNG with a deterministic palette.
-The browser overlays those transparent PNGs in sequence, so the animation represents the exact raster output rather than a redrawn approximation. Since masks are derived from the final single-label `stroke_map`, a foreground pixel can appear in only one layer.
-
-## Curated examples vs. uploads
-
-- `修改后的程序的结果/` contains reusable result folders. On a fresh clone, `ensure_demo_results()` generates missing folders from the curated source PNGs before indexing. `server.py` only indexes folders whose name begins with a numeric sample ID and whose matching source PNG exists under `data/`.
-- Uploads are allocated a random job ID beneath `网站/runtime_results/` and kept in the in-memory `RUNTIME_INDEX` until the service stops.
-- `.cache/` and `runtime_results/` are generated data and excluded from Git.
-
-## Change guide
-
-| Intended change | Start here |
-| --- | --- |
-| Split or merge behavior | `src/seal_stroke_split/` and matching tests under `tests/` |
-| Website upload restrictions or output paths | `网站/server.py` |
-| Playback state and controls | `网站/app.js` |
-| Layout, colors and responsive behavior | `网站/styles.css` |
-| Copy and semantic page structure | `网站/index.html` |
-
-Keep `result.json` and the `stroke_files` paths compatible when changing artifact generation: both the website and existing result directories depend on them.
+然后直接打开 `index.html`，确认搜索、图层切换、笔段点击与关系图节点点击均可工作。
