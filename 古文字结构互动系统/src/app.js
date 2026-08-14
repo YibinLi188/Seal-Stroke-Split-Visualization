@@ -8,6 +8,10 @@
     query: "",
     catalogFilter: "all",
     relationFilter: "all",
+    replayStep: 0,
+    replayDelay: 800,
+    isPlaying: false,
+    replayTimer: null,
   };
 
   function selectedGlyph() {
@@ -16,15 +20,58 @@
 
   function selectGlyph(id) {
     if (!glyphById.has(id)) return;
+    stopReplay();
     state.selectedId = id;
     state.selectedView = "original";
     state.selectedSegment = null;
+    state.replayStep = 0;
     render();
   }
 
   function setView(view, segment) {
+    if (view !== "replay") stopReplay();
     state.selectedView = view;
     state.selectedSegment = segment;
+    render();
+  }
+
+  function stopReplay() {
+    state.isPlaying = false;
+    if (state.replayTimer) window.clearTimeout(state.replayTimer);
+    state.replayTimer = null;
+  }
+
+  function scheduleReplay() {
+    if (!state.isPlaying) return;
+    state.replayTimer = window.setTimeout(() => {
+      const glyph = selectedGlyph();
+      state.replayStep = Math.min(state.replayStep + 1, glyph.segments.length);
+      if (state.replayStep >= glyph.segments.length) state.isPlaying = false;
+      render();
+      scheduleReplay();
+    }, state.replayDelay);
+  }
+
+  function toggleReplay() {
+    const glyph = selectedGlyph();
+    if (state.isPlaying) {
+      stopReplay();
+      render();
+      return;
+    }
+    state.selectedView = "replay";
+    state.selectedSegment = null;
+    if (state.replayStep >= glyph.segments.length) state.replayStep = 0;
+    state.isPlaying = true;
+    render();
+    scheduleReplay();
+  }
+
+  function moveReplay(step) {
+    stopReplay();
+    state.selectedView = "replay";
+    state.selectedSegment = null;
+    state.replayStep = Math.max(0, Math.min(step, selectedGlyph().segments.length));
     render();
   }
 
@@ -34,7 +81,8 @@
     const relations = window.RelationEngine.filterRelations(allRelations, state.relationFilter);
     window.GlyphUI.renderCatalog(glyphs, state.selectedId, state.query, state.catalogFilter, selectGlyph);
     window.GlyphUI.renderTabs(glyph, state.selectedView, state.selectedSegment, setView);
-    window.GlyphUI.renderImage(glyph, state.selectedView, state.selectedSegment);
+    window.GlyphUI.renderImage(glyph, state.selectedView, state.selectedSegment, state.replayStep);
+    window.GlyphUI.renderPlaybackControls(glyph, state.selectedView, state.replayStep, state.isPlaying, state.replayDelay);
     window.GlyphUI.renderMetrics(glyph);
     window.GlyphUI.renderSegments(glyph, state.selectedSegment, (segment) => setView("segment", segment));
     window.GlyphUI.renderRecord(glyph);
@@ -55,6 +103,19 @@
   });
   document.querySelector("#relationFilter").addEventListener("change", (event) => {
     state.relationFilter = event.target.value;
+    render();
+  });
+  document.querySelector("#replayPlay").addEventListener("click", toggleReplay);
+  document.querySelector("#replayReset").addEventListener("click", () => moveReplay(0));
+  document.querySelector("#replayPrevious").addEventListener("click", () => moveReplay(state.replayStep - 1));
+  document.querySelector("#replayNext").addEventListener("click", () => moveReplay(state.replayStep + 1));
+  document.querySelector("#replaySpeed").addEventListener("change", (event) => {
+    state.replayDelay = Number(event.target.value);
+    if (state.isPlaying) {
+      stopReplay();
+      state.isPlaying = true;
+      scheduleReplay();
+    }
     render();
   });
 
