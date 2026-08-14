@@ -3,86 +3,154 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="金文古文字拆笔画可视化实验台" />
-    <title>拆笔画 · 金文笔画实验台</title>
-    <link rel="stylesheet" href="styles.css" />
+    <meta name="description" content="面向小篆字形、笔画拆解与字形关系的协作式浏览器。" />
+    <title>古文字结构互动系统</title>
+    <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
     <header class="topbar">
-      <a class="brand" href="/" aria-label="拆笔画首页">
-        <span class="brand-mark">拆</span>
-        <span class="brand-copy"><strong>拆笔画</strong><small>SEAL STROKE SPLIT</small></span>
+      <a class="brand" href="#workspace" aria-label="回到字形工作台">
+        <span class="brand-mark">古</span>
+        <span>
+          <strong>古文字结构互动系统</strong>
+          <small>小篆笔画拆解与字形关系</small>
+        </span>
       </a>
-      <div class="runtime-status"><span class="status-dot"></span><span>本地分析模式</span></div>
+      <div class="dataset-status" id="datasetStatus" aria-live="polite"></div>
     </header>
 
-    <main class="page-shell">
-      <section class="intro-strip" aria-labelledby="page-title">
-        <div>
-          <p class="eyebrow">CHARACTER WORKBENCH / 金文研究工具</p>
-          <h1 id="page-title">把一个古文字拆开，<br />再看它如何一笔一笔成形。</h1>
-          <p class="intro-copy">选择已有样例，或上传自己的金文图片。程序会沿用当前拆笔画算法，把骨架路径与原始笔画像素重新对应起来。</p>
+    <main class="app-shell" id="workspace">
+      <aside class="catalog-panel" aria-label="字形目录">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">字形目录</p>
+            <h1>选择一个字形</h1>
+          </div>
+          <span class="count-pill" id="glyphCount"></span>
         </div>
-        <dl class="intro-stats" aria-label="当前工具信息">
-          <div><dt id="example-total">--</dt><dd>个可用样例</dd></div>
-          <div><dt>逐笔</dt><dd>彩色回放</dd></div>
-          <div><dt>Python</dt><dd>本地处理</dd></div>
-        </dl>
-      </section>
+        <label class="search-field" for="glyphSearch">
+          <span>搜索</span>
+          <input id="glyphSearch" type="search" placeholder="字形、编号或来源" autocomplete="off" />
+        </label>
+        <label class="filter-field" for="catalogFilter">
+          <span>显示</span>
+          <select id="catalogFilter">
+            <option value="all">全部样本</option>
+            <option value="review">待人工校释</option>
+            <option value="two-to-four">2-4 段</option>
+            <option value="five-plus">5 段以上</option>
+          </select>
+        </label>
+        <div class="glyph-list" id="glyphList" role="list"></div>
+      </aside>
 
-      <section class="workspace" aria-label="拆笔画工作区">
-        <aside class="source-panel tool-panel">
-          <div class="panel-heading">
-            <div><p class="eyebrow">01 / SOURCE</p><h2>选择字形</h2></div>
-            <span class="panel-count" id="example-count">--</span>
+      <section class="workspace-panel" aria-label="字形观察工作台">
+        <div class="glyph-header">
+          <div>
+            <p class="eyebrow" id="glyphSource">来源</p>
+            <h2 id="glyphTitle">字形</h2>
           </div>
-          <label class="upload-zone" id="upload-zone">
-            <input id="image-input" type="file" accept="image/png,image/jpeg,image/webp" />
-            <span class="upload-glyph">＋</span>
-            <strong>上传自己的金文图像</strong>
-            <small>支持 PNG / JPG / WebP，最大 16 MB</small>
-            <span class="upload-button">选择图片</span>
-          </label>
-          <div class="example-heading"><h3>已有样例</h3><span>点击即可查看结果</span></div>
-          <div id="example-list" class="example-list" aria-live="polite"></div>
-        </aside>
+          <div class="glyph-identity">
+            <span id="glyphUnicode"></span>
+            <span class="review-pill" id="reviewStatus"></span>
+          </div>
+        </div>
 
-        <section class="viewer-panel tool-panel" aria-labelledby="viewer-title">
-          <div class="viewer-heading">
-            <div><p class="eyebrow">02 / REPLAY</p><h2 id="viewer-title">请选择一个样例</h2><p class="viewer-subtitle" id="viewer-subtitle">准备好之后，点击播放逐笔观察。</p></div>
-            <div class="mode-switch" role="group" aria-label="展示模式">
-              <button class="mode-button is-active" type="button" data-mode="animate">逐笔动画</button>
-              <button class="mode-button" type="button" data-mode="overview">结果总览</button>
+        <div class="view-tabs" id="viewTabs" role="tablist" aria-label="字形图层"></div>
+        <div class="playback-controls" id="playbackControls" hidden>
+          <div class="playback-status">
+            <span>笔段回放</span>
+            <strong id="replayProgress">0 / 0 段</strong>
+          </div>
+          <div class="playback-actions">
+            <button type="button" id="replayPlay">播放</button>
+            <button type="button" id="replayReset">复位</button>
+            <button type="button" id="replayPrevious">上一段</button>
+            <button type="button" id="replayNext">下一段</button>
+            <label for="replaySpeed">速度
+              <select id="replaySpeed">
+                <option value="1200">慢</option>
+                <option value="800" selected>中</option>
+                <option value="450">快</option>
+              </select>
+            </label>
+          </div>
+        </div>
+        <div class="glyph-stage" id="glyphStage">
+          <img id="glyphImage" alt="所选字形的拆解图" />
+          <div class="replay-canvas" id="replayCanvas" hidden></div>
+          <p id="imageCaption"></p>
+        </div>
+        <div class="metric-strip" id="metricStrip"></div>
+
+        <section class="candidate-section" aria-labelledby="segmentsTitle">
+          <div class="section-title-row">
+            <div>
+              <p class="eyebrow">自动结果</p>
+              <h3 id="segmentsTitle">候选笔段</h3>
             </div>
+            <span class="status-note">点击任一笔段可单独查看</span>
           </div>
-
-          <div id="viewer-stage" class="viewer-stage" aria-live="polite">
-            <div class="empty-stage"><span>拆</span><p>从左侧选择一个金文样例</p></div>
-          </div>
-
-          <div class="control-row">
-            <div class="transport-controls">
-              <button id="play-button" class="primary-control" type="button" disabled>开始播放</button>
-              <button id="reset-button" class="secondary-control" type="button" disabled>重置</button>
-              <button id="prev-button" class="icon-control" type="button" title="上一笔" aria-label="上一笔" disabled>←</button>
-              <button id="next-button" class="icon-control" type="button" title="下一笔" aria-label="下一笔" disabled>→</button>
-            </div>
-            <label class="speed-control" for="speed-input"><span>速度</span><input id="speed-input" type="range" min="250" max="1600" step="50" value="850" /><output id="speed-value">0.85s</output></label>
-          </div>
-
-          <div class="progress-line"><span id="progress-label">0 / 0 笔</span><span id="result-note">等待加载</span></div>
-          <div id="stroke-legend" class="stroke-legend" aria-label="笔画列表"></div>
+          <div class="segments-list" id="segmentsList"></div>
         </section>
       </section>
 
-      <section class="explain-strip" aria-label="工具说明">
-        <div><span class="explain-number">A</span><div><h3>黑色前景 → 骨架路径</h3><p>保留当前项目的二值化、细化与交叉点修正流程。</p></div></div>
-        <div><span class="explain-number">B</span><div><h3>路径 → 一笔一笔</h3><p>每个彩色图层对应算法输出的一组笔画像素。</p></div></div>
-        <div><span class="explain-number">C</span><div><h3>逐步回放 → 观察结构</h3><p>播放、暂停、单步前进和总览模式都可直接操作。</p></div></div>
-      </section>
+      <aside class="record-panel" aria-label="字形资料与结构信息">
+        <section>
+          <p class="eyebrow">字形资料</p>
+          <h2>释义与来源</h2>
+          <p id="glyphDefinition" class="prose"></p>
+          <dl class="source-details" id="sourceDetails"></dl>
+        </section>
+
+        <section>
+          <p class="eyebrow">结构观察</p>
+          <h2>部件与构形</h2>
+          <p id="formationNote" class="prose"></p>
+          <div class="component-list" id="componentList"></div>
+        </section>
+
+        <section class="similar-section">
+          <div class="section-title-row">
+            <div>
+              <p class="eyebrow">系统建议</p>
+              <h2>相似字形</h2>
+            </div>
+            <label class="relation-filter" for="relationFilter">
+              <span class="sr-only">关系筛选</span>
+              <select id="relationFilter">
+                <option value="all">全部</option>
+                <option value="sequence">序列相近</option>
+                <option value="segments">段数接近</option>
+              </select>
+            </label>
+          </div>
+          <div class="similar-list" id="similarList"></div>
+        </section>
+      </aside>
     </main>
 
-    <footer class="footer"><span>拆笔画 / Seal Stroke Split</span><span>Local research interface</span></footer>
-    <script src="app.js"></script>
+    <section class="relations-section" aria-labelledby="relationTitle">
+      <div class="relations-heading">
+        <div>
+          <p class="eyebrow">关系浏览</p>
+          <h2 id="relationTitle">字形关系图</h2>
+        </div>
+        <p id="graphSummary">关系由笔段数量和长度序列自动推断，供人工核对。</p>
+      </div>
+      <div class="graph-shell" id="relationGraph" aria-label="字形关系图"></div>
+      <p class="graph-legend"><span class="legend-line"></span> 点击图中的字形可切换观察对象；连线表示待核对的形体接近度。</p>
+    </section>
+
+    <footer class="site-footer">
+      <span>自动拆解结果是研究线索，不等同于已确认的文字学结论。</span>
+      <span>团队维护入口：<code>data/glyph-notes.json</code>、<code>scripts/import_experiment.py</code></span>
+    </footer>
+
+    <script src="./data/glyphs.js"></script>
+    <script src="./src/relation-engine.js"></script>
+    <script src="./src/graph-renderer.js"></script>
+    <script src="./src/ui.js"></script>
+    <script src="./src/app.js"></script>
   </body>
 </html>
