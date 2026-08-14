@@ -9,6 +9,37 @@
     ["overlay", "叠加检查", "候选笔段与字形叠加"],
     ["overlap", "重叠检查", "笔段重叠区域"],
   ];
+  const SVG_NS = "http://www.w3.org/2000/svg";
+
+  function svgElement(tag, attributes = {}) {
+    const element = document.createElementNS(SVG_NS, tag);
+    Object.entries(attributes).forEach(([name, value]) => element.setAttribute(name, value));
+    return element;
+  }
+
+  function strokePath(points) {
+    return (points || [])
+      .filter((point) => Array.isArray(point) && point.length >= 2)
+      .map(([y, x], index) => `${index ? "L" : "M"} ${Number(x)} ${Number(y)}`)
+      .join(" ");
+  }
+
+  function revealWidth(segment) {
+    const points = Math.max(1, segment.pointCount || segment.points?.length || 1);
+    const pixels = Math.max(1, segment.pixelCount || points);
+    return Math.max(1.4, Math.min(5, (pixels / points) * 1.05));
+  }
+
+  function animateMaskPath(path) {
+    requestAnimationFrame(() => {
+      const length = path.getTotalLength();
+      if (!Number.isFinite(length) || length <= 0) return;
+      path.style.strokeDasharray = `${length} ${length}`;
+      path.style.strokeDashoffset = `${length}`;
+      path.style.transition = "stroke-dashoffset 360ms linear";
+      requestAnimationFrame(() => { path.style.strokeDashoffset = "0"; });
+    });
+  }
 
   const escapeHtml = (value) => String(value)
     .replaceAll("&", "&amp;")
@@ -66,7 +97,7 @@
     });
   }
 
-  function renderImage(glyph, selectedView, selectedSegment, replayStep) {
+  function renderImage(glyph, selectedView, selectedSegment, replayStep, replayFinished) {
     const image = document.querySelector("#glyphImage");
     const replayCanvas = document.querySelector("#replayCanvas");
     const caption = document.querySelector("#imageCaption");
@@ -76,21 +107,62 @@
 
     if (isReplay) {
       replayCanvas.replaceChildren();
-      const reference = document.createElement("img");
-      reference.className = "replay-reference";
-      reference.src = encodeURI(glyph.assets.original);
-      reference.alt = "";
-      replayCanvas.append(reference);
-      glyph.segments.slice(0, replayStep).forEach((segment, index) => {
-        const layer = document.createElement("img");
-        layer.className = `replay-layer${index === replayStep - 1 ? " is-latest" : ""}`;
-        layer.src = encodeURI(segment.image);
-        layer.alt = "";
-        replayCanvas.append(layer);
+      const width = glyph.canvas?.width || 80;
+      const height = glyph.canvas?.height || 80;
+      const svg = svgElement("svg", {
+        viewBox: `0 0 ${width} ${height}`,
+        preserveAspectRatio: "xMidYMid meet",
+        role: "img",
+        "aria-label": `${glyph.title} 的逐笔书写过程`,
       });
-      caption.textContent = replayStep
-        ? `已呈现前 ${replayStep} 个候选笔段`
-        : "从第一个候选笔段开始回放";
+      const original = encodeURI(glyph.assets.original);
+      const ghost = svgElement("image", { href: original, x: 0, y: 0, width, height, opacity: "0.1" });
+      svg.append(ghost);
+
+      if (replayFinished) {
+        svg.append(svgElement("image", { href: original, x: 0, y: 0, width, height }));
+        caption.textContent = "已完成书写，恢复为原始字形";
+      } else {
+        const maskId = `replay-mask-${glyph.sourceId}`;
+        const defs = svgElement("defs");
+        const mask = svgElement("mask", {
+          id: maskId,
+          x: 0,
+          y: 0,
+          width,
+          height,
+          maskUnits: "userSpaceOnUse",
+          maskContentUnits: "userSpaceOnUse",
+        });
+        mask.append(svgElement("rect", { x: 0, y: 0, width, height, fill: "black" }));
+        glyph.segments.slice(0, replayStep).forEach((segment, index) => {
+          const pathData = strokePath(segment.points);
+          if (!pathData) return;
+          const path = svgElement("path", {
+            d: pathData,
+            fill: "none",
+            stroke: "white",
+            "stroke-width": revealWidth(segment),
+            "stroke-linecap": "round",
+            "stroke-linejoin": "round",
+          });
+          mask.append(path);
+          if (index === replayStep - 1) animateMaskPath(path);
+        });
+        defs.append(mask);
+        svg.append(defs, svgElement("image", {
+          href: original,
+          x: 0,
+          y: 0,
+          width,
+          height,
+          mask: `url(#${maskId})`,
+        }));
+        caption.textContent = replayStep
+          ? `正在书写第 ${replayStep} 个候选笔段`
+          : "从第一个候选笔段开始书写";
+      }
+      replayCanvas.append(svg);
       return;
     }
 
