@@ -38,7 +38,7 @@
       const group = svgNode("g", { class: "graph-node graph-node-related", tabindex: "0", role: "button", "aria-label": `查看 ${related.title}` });
       group.append(svgNode("circle", { cx: position.x, cy: position.y, r: 48 }));
       addText(group, related.mark, position.x, position.y + 8, "graph-mark");
-      addText(group, `${related.metrics.segmentCount} 段`, position.x, position.y + 73, "graph-count");
+      addText(group, `${related.metrics.segmentCount} 笔`, position.x, position.y + 73, "graph-count");
       const activate = () => onSelect(related.id);
       group.addEventListener("click", activate);
       group.addEventListener("keydown", (event) => {
@@ -53,7 +53,7 @@
     const centerGroup = svgNode("g", { class: "graph-node graph-node-center" });
     centerGroup.append(svgNode("circle", { cx: center.x, cy: center.y, r: 63 }));
     addText(centerGroup, glyph.mark, center.x, center.y + 10, "graph-mark");
-    addText(centerGroup, `${glyph.metrics.segmentCount} 段`, center.x, center.y + 91, "graph-count");
+    addText(centerGroup, `${glyph.metrics.segmentCount} 笔`, center.x, center.y + 91, "graph-count");
     svg.append(centerGroup);
     container.append(svg);
   }

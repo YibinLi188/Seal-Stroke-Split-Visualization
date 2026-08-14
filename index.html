@@ -13,7 +13,7 @@
         <span class="brand-mark">古</span>
         <span>
           <strong>古文字结构互动系统</strong>
-          <small>小篆笔画拆解与字形关系</small>
+          <small>小篆字形观察与互动探索</small>
         </span>
       </a>
       <div class="dataset-status" id="datasetStatus" aria-live="polite"></div>
@@ -36,9 +36,8 @@
           <span>显示</span>
           <select id="catalogFilter">
             <option value="all">全部样本</option>
-            <option value="review">待人工校释</option>
-            <option value="two-to-four">2-4 段</option>
-            <option value="five-plus">5 段以上</option>
+            <option value="two-to-four">笔画较少</option>
+            <option value="five-plus">笔画较多</option>
           </select>
         </label>
         <div class="glyph-list" id="glyphList" role="list"></div>
@@ -50,17 +49,13 @@
             <p class="eyebrow" id="glyphSource">来源</p>
             <h2 id="glyphTitle">字形</h2>
           </div>
-          <div class="glyph-identity">
-            <span id="glyphUnicode"></span>
-            <span class="review-pill" id="reviewStatus"></span>
-          </div>
         </div>
 
-        <div class="view-tabs" id="viewTabs" role="tablist" aria-label="字形图层"></div>
+        <div class="view-tabs" id="viewTabs" role="tablist" aria-label="字形观察方式"></div>
         <div class="playback-controls" id="playbackControls" hidden>
           <div class="playback-status">
-            <span>笔段回放</span>
-            <strong id="replayProgress">0 / 0 段</strong>
+            <span>逐笔书写</span>
+            <strong id="replayProgress">0 / 0 笔</strong>
           </div>
           <div class="playback-actions">
             <button type="button" id="replayPlay">播放</button>
@@ -86,10 +81,10 @@
         <section class="candidate-section" aria-labelledby="segmentsTitle">
           <div class="section-title-row">
             <div>
-              <p class="eyebrow">自动结果</p>
-              <h3 id="segmentsTitle">候选笔段</h3>
+              <p class="eyebrow">笔画观察</p>
+              <h3 id="segmentsTitle">笔画拆解</h3>
             </div>
-            <span class="status-note">点击任一笔段可单独查看</span>
+            <span class="status-note">点击任一笔画可单独查看</span>
           </div>
           <div class="segments-list" id="segmentsList"></div>
         </section>
@@ -97,14 +92,14 @@
 
       <aside class="record-panel" aria-label="字形资料与结构信息">
         <section>
-          <p class="eyebrow">字形资料</p>
+          <p class="eyebrow">字形信息</p>
           <h2>释义与来源</h2>
           <p id="glyphDefinition" class="prose"></p>
           <dl class="source-details" id="sourceDetails"></dl>
         </section>
 
         <section>
-          <p class="eyebrow">结构观察</p>
+          <p class="eyebrow">结构理解</p>
           <h2>部件与构形</h2>
           <p id="formationNote" class="prose"></p>
           <div class="component-list" id="componentList"></div>
@@ -113,15 +108,15 @@
         <section class="similar-section">
           <div class="section-title-row">
             <div>
-              <p class="eyebrow">系统建议</p>
+              <p class="eyebrow">相近字形</p>
               <h2>相似字形</h2>
             </div>
             <label class="relation-filter" for="relationFilter">
               <span class="sr-only">关系筛选</span>
               <select id="relationFilter">
                 <option value="all">全部</option>
-                <option value="sequence">序列相近</option>
-                <option value="segments">段数接近</option>
+                <option value="sequence">笔画顺序相近</option>
+                <option value="segments">笔画数量相近</option>
               </select>
             </label>
           </div>
@@ -136,15 +131,14 @@
           <p class="eyebrow">关系浏览</p>
           <h2 id="relationTitle">字形关系图</h2>
         </div>
-        <p id="graphSummary">关系由笔段数量和长度序列自动推断，供人工核对。</p>
+        <p id="graphSummary">这里展示可能相近的字形，供观察和讨论。</p>
       </div>
       <div class="graph-shell" id="relationGraph" aria-label="字形关系图"></div>
-      <p class="graph-legend"><span class="legend-line"></span> 点击图中的字形可切换观察对象；连线表示待核对的形体接近度。</p>
+      <p class="graph-legend"><span class="legend-line"></span> 点击图中的字形可切换观察对象；连线表示它们可能的相近之处。</p>
     </section>
 
     <footer class="site-footer">
-      <span>自动拆解结果是研究线索，不等同于已确认的文字学结论。</span>
-      <span>团队维护入口：<code>data/glyph-notes.json</code>、<code>scripts/import_experiment.py</code></span>
+      <span>本网站用于小篆字形的观察、学习和讨论，内容将持续完善。</span>
     </footer>
 
     <script src="./data/glyphs.js"></script>
