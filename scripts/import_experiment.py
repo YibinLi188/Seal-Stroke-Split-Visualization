@@ -61,7 +61,8 @@ def png_dimensions(path: Path) -> tuple[int, int]:
 def build_glyph(entry: dict, experiment: Path, source_images: Path, version: str, notes: dict) -> dict:
     source_id, mark, source_name = parse_glyph_name(entry["image"])
     folder = Path(entry["image"]).stem
-    result = read_json(experiment / folder / "result.json")
+    source_dir = Path(entry["image"]).with_suffix("")
+    result = read_json(experiment / source_dir / "result.json")
     note = notes.get(folder, {})
     asset_root = PROJECT_ROOT / "public" / "assets" / "experiments" / version / folder
     original_path = PROJECT_ROOT / "public" / "assets" / "sources" / version / entry["image"]
@@ -141,7 +142,8 @@ def main() -> None:
     glyphs = []
     for entry in summary["results"]:
         folder = Path(entry["image"]).stem
-        copy_tree(experiment / folder, destination_root / folder)
+        source_dir = Path(entry["image"]).with_suffix("")
+        copy_tree(experiment / source_dir, destination_root / folder)
         glyphs.append(build_glyph(entry, experiment, source_images, args.version, notes))
 
     payload = {"dataset": {"name": "小篆笔画拆解", "version": args.version, "count": len(glyphs)}, "glyphs": glyphs}
