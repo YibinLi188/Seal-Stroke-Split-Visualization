@@ -5,7 +5,7 @@ import numpy as np
 
 from .config import SplitConfig
 from .image_ops import connected_components
-from .skeleton_graph import angle_delta_deg, build_graph, group_by_endpoint, point_angle, trace_paths
+from .skeleton_graph import angle_delta_deg, build_graph, collapse_short_bridges, group_by_endpoint, point_angle, point_distance, trace_paths
 from .types import Point, StrokeSegment
 from .thinning import fix_cross_alignment
 
@@ -71,66 +71,55 @@ def _combine_segments(
 
 
 def merge_segments_at_endpoints(segments: list[list[Point]], config: SplitConfig) -> list[list[Point]]:
-    """
-    合并共享端点的路径段。
-    
-    策略：
-    1. 先遍历所有端点，收集所有可合并的路径对
-    2. 记录每对路径的合并方式（方向、角度等）
-    3. 所有判断完成后，统一执行合并
-    4. 重复上述过程直到没有更多合并
-    
-    这样可以避免合并过程中端点被"占用"导致其他可能的合并被遗漏。
-    """
     merged = [list(seg) for seg in segments]
-    
+
     while True:
-        # 获取当前所有端点分组
-        endpoint_map = group_by_endpoint(merged)
-        
-        # 第一步：收集所有可合并的配对
-        # 结构: [(ia, ib, a_at_start, b_at_start, merge_type, score), ...]
-        # merge_type: 'same_direction' 或 'through_junction'
+        endpoint_clusters = group_by_endpoint(merged, config.max_endpoint_gap)
         candidates = []
-        
-        for point, idxs in endpoint_map.items():
-            active = [idx for idx in idxs if merged[idx]]
+
+        for point, members in endpoint_clusters:
+            active = [(idx, is_start) for idx, is_start in members if merged[idx]]
             if len(active) < 2:
                 continue
-            
-            # 检查这个端点上的所有路径对
+
             for i in range(len(active)):
                 for j in range(i + 1, len(active)):
-                    ia = active[i]
-                    ib = active[j]
+                    ia, ia_start = active[i]
+                    ib, ib_start = active[j]
+                    if ia == ib:
+                        continue
                     seg_a = merged[ia]
                     seg_b = merged[ib]
-                    
-                    # 确定两条路径在端点处的方向
-                    a_at_start = seg_a[0] == point
-                    b_at_start = seg_b[0] == point
+
+                    a_at_start = ia_start
+                    b_at_start = ib_start
                     ang_a = _segment_endpoint_angle(seg_a, a_at_start, config.direction_window)
                     ang_b = _segment_endpoint_angle(seg_b, b_at_start, config.direction_window)
                     delta = angle_delta_deg(ang_a, ang_b)
-                    
-                    # 判断合并类型
+
                     merge_type = None
                     score = None
-                    
-                    # 情况1：同方向合并（角度差小）
+
                     if delta <= config.merge_angle_deg:
                         merge_type = 'same_direction'
                         score = delta + abs(len(seg_a) - len(seg_b)) * 0.01
-                    
-                    # 情况2：穿过交叉点合并（角度差接近180°）
+
+                    # 短段强制合并:长度 ≤ N 且非空段,直接同向合并(用于清理细化残留毛刺)
+                    short_len = min(len(seg_a), len(seg_b))
+                    if short_len <= config.short_segment_force_merge and short_len > 0:
+                        # 优先合并到长段:长段越长越好
+                        force_score = -1000.0 - max(len(seg_a), len(seg_b))
+                        if merge_type is None or force_score < score:
+                            merge_type = 'force_short'
+                            score = force_score
+
                     straightness = abs(delta - 180.0)
-                    if len(active) >= 3 and straightness <= config.through_angle_deg:
-                        # 如果同方向也满足，选择评分更优的
+                    if len(active) >= 2 and straightness <= config.through_angle_deg:
                         through_score = straightness - min(len(seg_a), len(seg_b)) * 0.01
                         if merge_type is None or through_score < score:
                             merge_type = 'through_junction'
                             score = through_score
-                    
+
                     if merge_type is not None:
                         candidates.append({
                             'ia': ia,
@@ -143,50 +132,41 @@ def merge_segments_at_endpoints(segments: list[list[Point]], config: SplitConfig
                             'len_a': len(seg_a),
                             'len_b': len(seg_b),
                         })
-        
-        # 如果没有候选，退出循环
+
         if not candidates:
             break
-        
-        # 第二步：按评分排序（评分越低越好）
+
         candidates.sort(key=lambda x: x['score'])
-        
-        # 第三步：选择要执行的合并（避免路径冲突）
+
         used_indices = set()
         selected_merges = []
-        
+
         for cand in candidates:
             ia = cand['ia']
             ib = cand['ib']
-            
-            # 如果某条路径已经被合并了，跳过
+
             if ia in used_indices or ib in used_indices:
                 continue
-            
-            # 确保两条路径还存在
+
             if not merged[ia] or not merged[ib]:
                 continue
-            
-            # 选择这个合并
+
             selected_merges.append(cand)
             used_indices.add(ia)
             used_indices.add(ib)
-        
-        # 第四步：统一执行所有合并
+
         for cand in selected_merges:
             ia = cand['ia']
             ib = cand['ib']
             a_at_start = cand['a_at_start']
             b_at_start = cand['b_at_start']
-            
+
             merged[ia] = _combine_segments(merged[ia], merged[ib], a_at_start, b_at_start)
             merged[ib] = []
-        
-        # 如果本次没有实际合并，退出循环
+
         if not selected_merges:
             break
-    
-    # 返回非空路径
+
     return [seg for seg in merged if len(seg) >= 2]
 
 
@@ -195,31 +175,38 @@ def absorb_tiny_segments(segments: list[list[Point]], config: SplitConfig) -> li
     changed = True
     while changed:
         changed = False
-        endpoint_map = group_by_endpoint(merged)
+        clusters = group_by_endpoint(merged, config.max_endpoint_gap)
         for idx, seg in enumerate(merged):
             if not seg or len(seg) > config.tiny_segment_points:
                 continue
             candidate = None
             best_score = None
-            for endpoint in (seg[0], seg[-1]):
-                neighbors = [other for other in endpoint_map.get(endpoint, []) if other != idx and merged[other]]
-                at_start = seg[0] == endpoint
-                tiny_angle = _segment_endpoint_angle(seg, at_start, config.direction_window)
-                for other in neighbors:
-                    other_seg = merged[other]
-                    other_at_start = other_seg[0] == endpoint
-                    other_angle = _segment_endpoint_angle(other_seg, other_at_start, config.direction_window)
-                    delta = min(angle_delta_deg(tiny_angle, other_angle), abs(angle_delta_deg(tiny_angle, other_angle) - 180.0))
-                    score = delta + len(seg) * 0.5 - len(other_seg) * 0.02
-                    if best_score is None or score < best_score:
-                        best_score = score
-                        candidate = (idx, other, at_start, other_at_start, endpoint)
+            for rep, members in clusters:
+                my_starts = [is_start for sidx, is_start in members if sidx == idx]
+                if not my_starts:
+                    continue
+                neighbors = [(sidx, is_start) for sidx, is_start in members if sidx != idx and merged[sidx]]
+                for tiny_at_start in my_starts:
+                    tiny_angle = _segment_endpoint_angle(seg, tiny_at_start, config.direction_window)
+                    for other_idx, other_at_start in neighbors:
+                        other_seg = merged[other_idx]
+                        other_angle = _segment_endpoint_angle(other_seg, other_at_start, config.direction_window)
+                        delta = min(angle_delta_deg(tiny_angle, other_angle), abs(angle_delta_deg(tiny_angle, other_angle) - 180.0))
+                        other_endpoint = other_seg[0] if other_at_start else other_seg[-1]
+                        end_dist = point_distance(other_endpoint, seg[0] if tiny_at_start else seg[-1])
+                        score = delta + len(seg) * 0.5 - len(other_seg) * 0.02
+                        # 端点距离很近时,跳过角度要求,强制吸收(清理细化残留毛刺)
+                        if end_dist <= config.tiny_merge_distance:
+                            score -= 1000.0
+                        if best_score is None or score < best_score:
+                            best_score = score
+                            candidate = (idx, other_idx, tiny_at_start, other_at_start)
             if candidate is None:
                 continue
-            tiny_idx, other_idx, tiny_at_start, other_at_start, endpoint = candidate
+            tiny_idx, other_idx, tiny_at_start, other_at_start = candidate
             tiny_seg = merged[tiny_idx]
             other_seg = merged[other_idx]
-            tiny_forward = tiny_seg if tiny_seg[0] == endpoint else list(reversed(tiny_seg))
+            tiny_forward = tiny_seg if tiny_at_start else list(reversed(tiny_seg))
             if other_at_start:
                 combined = tiny_forward + other_seg[1:]
             else:
@@ -232,53 +219,86 @@ def absorb_tiny_segments(segments: list[list[Point]], config: SplitConfig) -> li
 
 
 def segment_skeleton(skeleton: np.ndarray, config: SplitConfig) -> list[StrokeSegment]:
-    # ========== 新增：骨架预处理 ==========
-    aligned = fix_cross_alignment(skeleton)  # ← 新增，修正错位的竖线
-    
-    # ========== 使用预处理后的骨架 ==========
-    graph = build_graph(aligned)             # ← 改了：用 aligned 而不是 skeleton
+    aligned = fix_cross_alignment(skeleton)
+    graph = build_graph(aligned)
+    graph, _ = collapse_short_bridges(graph, config.bridge_collapse_len)
     base_paths = trace_paths(graph)
-    
+
     split_paths: list[list[Point]] = []
     for path in base_paths:
         split_paths.extend(split_path_by_angle(path, config))
+
+    merged = merge_segments_at_endpoints(split_paths, config)
+    cleaned = absorb_tiny_segments(merged, config)
+    attached = _fold_attach_pass(cleaned, config)
     
-    # ========== 合并函数替换 ==========
-    merged = merge_segments_at_endpoints(split_paths, config)  # ← 新函数，替代原来的两个
-    
-    cleaned = absorb_tiny_segments(merged, config)             # ← 改了：用 merged 而不是 through
-    
-    return order_segments_for_drawing(
-        [StrokeSegment(stroke_id=i + 1, points=path) for i, path in enumerate(cleaned)]
-    )
+
+    return [StrokeSegment(stroke_id=i + 1, points=path) for i, path in enumerate(attached)]
 
 
-def _stroke_order_key(segment: StrokeSegment) -> tuple[float, int, float, float, float, int]:
-    """Approximate a readable character writing order from segment geometry."""
-    points = np.asarray(segment.points, dtype=np.float32)
-    ys = points[:, 0]
-    xs = points[:, 1]
-    height = float(ys.max() - ys.min())
-    width = float(xs.max() - xs.min())
-    if width >= height * 1.4:
-        direction_rank = 0  # horizontal first
-    elif height >= width * 1.4:
-        direction_rank = 1  # then vertical
-    else:
-        direction_rank = 2  # diagonals and curves
-    return (
-        float(ys.min()),
-        direction_rank,
-        float(xs.min()),
-        float(ys.mean()),
-        float(xs.mean()),
-        -len(segment.points),
-    )
+def _fold_attach_pass(segments: list[list[Point]], config: SplitConfig) -> list[list[Point]]:
+    """通用规则:折角接续合并
+    某笔内部有 Δ≥45° 的拐角,且拐点下半段方向与下一笔全程方向同向(delta≤30°),
+    且拐点与下一笔起点距离≤6,则:
+      新笔 i = 笔 i 上半段 + 笔 (i+1)
+      新笔 (i+1) = 笔 i 下半段
+    仅在满足全部条件时触发,避免误伤含折角的常规笔画。
+    """
+    fold_deg = getattr(config, "fold_attach_angle_deg", 45.0)
+    dir_tol = getattr(config, "fold_attach_dir_tol_deg", 30.0)
+    gap_max = getattr(config, "fold_attach_gap_max", 6.0)
+    W = 8
+
+    def _fold_pos(pts: list[Point]) -> tuple[int, float] | None:
+        if len(pts) < 2 * W + 2:
+            return None
+        best_delta = 0.0
+        best_i = -1
+        for i in range(W, len(pts) - W):
+            a1 = point_angle(pts[i - W], pts[i])
+            a2 = point_angle(pts[i], pts[i + W])
+            dd = angle_delta_deg(a1, a2)
+            if dd > best_delta:
+                best_delta = dd
+                best_i = i
+        if best_delta >= fold_deg:
+            return best_i, best_delta
+        return None
+
+    out: list[list[Point]] = []
+    i = 0
+    while i < len(segments):
+        cur = segments[i]
+        if i + 1 < len(segments):
+            fold = _fold_pos(cur)
+            if fold is not None:
+                pos, _delta = fold
+                nxt = segments[i + 1]
+                d1 = point_angle(cur[pos], cur[-1])
+                d2 = point_angle(nxt[0], nxt[-1])
+                gap = point_distance(cur[pos], nxt[0])
+                if angle_delta_deg(d1, d2) <= dir_tol and gap <= gap_max:
+                    upper = cur[: pos + 1]
+                    lower = cur[pos:]
+                    new_cur = upper + nxt
+                    new_next = lower
+                    out.append(new_cur)
+                    out.append(new_next)
+                    i += 2
+                    continue
+        out.append(cur)
+        i += 1
+    return out
 
 
-def order_segments_for_drawing(segments: list[StrokeSegment]) -> list[StrokeSegment]:
-    ordered = sorted(segments, key=_stroke_order_key)
-    return [StrokeSegment(stroke_id=index, points=list(segment.points)) for index, segment in enumerate(ordered, start=1)]
+def node_degrees_from_segments(segments: list[list[Point]]) -> dict[Point, int]:
+    from collections import Counter
+    endpoints: Counter[Point] = Counter()
+    for seg in segments:
+        if len(seg) >= 2:
+            endpoints[seg[0]] += 1
+            endpoints[seg[-1]] += 1
+    return dict(endpoints)
 
 
 def _distance_maps(mask: np.ndarray, segments: list[StrokeSegment]) -> tuple[np.ndarray, np.ndarray]:
@@ -335,8 +355,48 @@ def assign_foreground_to_strokes(
     stroke_map[ys, xs] = nearest
     stroke_map = _reassign_tiny_regions(stroke_map, mask, config)
 
-    # Every foreground pixel belongs to exactly one stroke. The previous
-    # margin-based inclusion duplicated pixels near crossings.
-    stroke_masks = [stroke_map == (idx + 1) for idx in range(len(segments))]
+    min_dist = np.min(distances, axis=0)
+    stroke_masks: list[np.ndarray] = []
+    for idx in range(len(segments)):
+        own_dist = distances[idx]
+        allow = own_dist <= (min_dist + config.overlap_margin)
+        stroke_mask = np.zeros(mask.shape, dtype=bool)
+        stroke_mask[ys, xs] = allow
+        stroke_masks.append(stroke_mask)
+
+    return stroke_map, stroke_masks
+
+
+def fill_back_gray_pixels(
+    gray: np.ndarray,
+    segments: list[StrokeSegment],
+    stroke_map: np.ndarray,
+    stroke_masks: list[np.ndarray],
+    config: SplitConfig,
+) -> tuple[np.ndarray, list[np.ndarray]]:
+    """把二值化时被丢弃的灰色像素(灰度 1~254)回填到已拆分的笔画中。
+
+    二值化只保留灰度 == threshold(默认 0) 的纯黑像素，灰度 1~254 的像素被当作
+    背景丢弃。本函数在笔画拆分完成后调用，把这些灰色像素按"到各笔画骨架的最近
+    距离"归入最近的那一笔，从而恢复出圆润完整的笔画。纯白(255)仍是背景，不回填。
+    """
+    if not segments:
+        return stroke_map, stroke_masks
+
+    # 灰色前景：非纯黑(0)、非纯白(255)，且尚未被已有前景覆盖
+    unfilled = (gray > 0) & (gray < 255) & (stroke_map == 0)
+    if not unfilled.any():
+        return stroke_map, stroke_masks
+
+    distances, fg_points = _distance_maps(unfilled, segments)
+    nearest = np.argmin(distances, axis=0) + 1
+    ys = fg_points[:, 0]
+    xs = fg_points[:, 1]
+    stroke_map[ys, xs] = nearest
+
+    min_dist = np.min(distances, axis=0)
+    for idx in range(len(segments)):
+        allow = distances[idx] <= (min_dist + config.overlap_margin)
+        stroke_masks[idx][ys, xs] |= allow
 
     return stroke_map, stroke_masks

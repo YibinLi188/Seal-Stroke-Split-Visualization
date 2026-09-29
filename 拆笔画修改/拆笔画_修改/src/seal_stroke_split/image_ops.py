@@ -9,6 +9,25 @@ def load_binary_image(path: str, threshold: int) -> np.ndarray:
     arr = np.array(gray, dtype=np.uint8)
     return arr == threshold
 
+
+def load_gray_image(path: str) -> np.ndarray:
+    """读取原图为灰度数组 (uint8)，用于回填二值化时丢弃的灰色像素。"""
+    gray = Image.open(path).convert("L")
+    return np.array(gray, dtype=np.uint8)
+
+
+def crop_gray(gray: np.ndarray, reference_mask: np.ndarray, padding: int) -> np.ndarray:
+    """按 reference_mask 的前景边界裁剪灰度图，保持与二值化裁剪结果坐标对齐。"""
+    ys, xs = np.nonzero(reference_mask)
+    if len(xs) == 0:
+        return gray.copy()
+    y0 = max(int(ys.min()) - padding, 0)
+    y1 = min(int(ys.max()) + padding + 1, gray.shape[0])
+    x0 = max(int(xs.min()) - padding, 0)
+    x1 = min(int(xs.max()) + padding + 1, gray.shape[1])
+    return gray[y0:y1, x0:x1]
+
+
 def crop_foreground(mask: np.ndarray, padding: int) -> np.ndarray:
     ys, xs = np.nonzero(mask)
     if len(xs) == 0:

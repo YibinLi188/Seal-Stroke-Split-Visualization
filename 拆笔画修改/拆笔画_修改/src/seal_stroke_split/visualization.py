@@ -1,4 +1,7 @@
+import colorsys
 import random
+from pathlib import Path
+from typing import List, Tuple
 
 import numpy as np
 from PIL import Image, ImageDraw
@@ -90,3 +93,68 @@ def render_overlap_map(result: SplitResult) -> Image.Image:
     canvas[result.cropped_binary] = np.array([220, 220, 220], dtype=np.uint8)
     canvas[counts >= 2] = np.array([30, 30, 30], dtype=np.uint8)
     return Image.fromarray(canvas, mode="RGB")
+
+
+# ============================================================
+# 笔顺动画：按步绘制
+# ============================================================
+
+def render_handwriting_step(
+    stroke_masks: List[np.ndarray],
+    step: int,
+    canvas_size: Tuple[int, int] | None = None,
+    background_color: Tuple[int, int, int] = (255, 255, 255),
+    stroke_color_palette: List[Tuple[int, int, int]] | None = None,
+    ghost_color: Tuple[int, int, int] = (220, 220, 220),
+) -> Image.Image:
+    """绘制笔顺第 step 步的状态图。
+
+    stroke_masks 应为已按笔顺排序的掩码列表；step 为 1-based，显示第 1~step 笔。
+    """
+    if not stroke_masks:
+        return Image.new("RGB", (64, 64), background_color)
+
+    if canvas_size is None:
+        h, w = stroke_masks[0].shape
+        canvas_size = (w, h)
+
+    canvas = np.full((canvas_size[1], canvas_size[0], 3), background_color, dtype=np.uint8)
+
+    if stroke_color_palette is None:
+        stroke_color_palette = []
+        n = len(stroke_masks)
+        for i in range(n):
+            hue = (i * 0.618033988749895) % 1.0
+            rgb = colorsys.hls_to_rgb(hue, 0.6, 0.8)
+            stroke_color_palette.append(
+                (int(rgb[0] * 255), int(rgb[1] * 255), int(rgb[2] * 255))
+            )
+
+    for idx, mask in enumerate(stroke_masks):
+        color = stroke_color_palette[idx % len(stroke_color_palette)] if idx < step else ghost_color
+        canvas[mask] = color
+
+    return Image.fromarray(canvas, mode="RGB")
+
+
+def render_handwriting_animation(
+    stroke_masks: List[np.ndarray],
+    out_dir: Path,
+    prefix: str = "第",
+    suffix: str = "步",
+    canvas_size: Tuple[int, int] | None = None,
+) -> None:
+    """生成笔顺动画的所有帧图，逐帧递增显示笔画。"""
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    n = len(stroke_masks)
+    if n == 0:
+        return
+
+    if canvas_size is None:
+        h, w = stroke_masks[0].shape
+        canvas_size = (w, h)
+
+    for step in range(1, n + 1):
+        img = render_handwriting_step(stroke_masks, step, canvas_size=canvas_size)
+        img.save(out_dir / f"{prefix}{step}{suffix}.png")
