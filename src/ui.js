@@ -97,6 +97,7 @@
     const replayCanvas = document.querySelector("#replayCanvas");
     const caption = document.querySelector("#imageCaption");
     const isReplay = selectedView === "replay" && !selectedSegment;
+    const isComposite = selectedView === "composite" && !selectedSegment;
     image.hidden = isReplay;
     replayCanvas.hidden = !isReplay;
 
@@ -161,6 +162,14 @@
       return;
     }
 
+    if (isComposite) {
+      // 笔画拆解视图：直接显示离线生成好的按笔着色原字彩图（strokes.png）
+      image.src = glyph.assets.composite;
+      image.alt = `${glyph.title}：按笔着色的原字`;
+      caption.textContent = "观察字形由哪些笔画组成";
+      return;
+    }
+
     if (selectedSegment) {
       image.src = selectedSegment.image;
       image.alt = `${glyph.title} 的第 ${selectedSegment.id} 笔`;
@@ -171,6 +180,44 @@
     image.src = glyph.assets[view[0]];
     image.alt = `${glyph.title}：${view[1]}`;
     caption.textContent = view[2];
+  }
+
+  // 每一笔分配一种可区分的颜色；笔画多于预设色数时用黄金角继续生成
+  function strokePalette(count) {
+    const base = [
+      [217, 68, 68],   // 红
+      [232, 158, 49],  // 橙
+      [225, 199, 56],  // 黄
+      [78, 178, 110],  // 绿
+      [64, 165, 205],  // 青
+      [158, 110, 200], // 紫
+      [214, 105, 160], // 粉
+      [80, 190, 175],  // 蓝绿
+    ];
+    if (count <= base.length) return base.slice(0, count);
+    const out = base.slice();
+    for (let i = base.length; i < count; i += 1) {
+      const h = (i * 137.5) % 360;
+      out.push(hslToRgb(h, 0.65, 0.55));
+    }
+    return out;
+  }
+
+  function hslToRgb(h, s, l) {
+    h = h / 360;
+    const c = (1 - Math.abs(2 * l - 1)) * s;
+    const x = c * (1 - Math.abs((h * 6) % 2 - 1));
+    const m = l - c / 2;
+    let r = 0;
+    let g = 0;
+    let b = 0;
+    if (h < 1 / 6) { r = c; g = x; b = 0; }
+    else if (h < 2 / 6) { r = x; g = c; b = 0; }
+    else if (h < 3 / 6) { r = 0; g = c; b = x; }
+    else if (h < 4 / 6) { r = 0; g = x; b = c; }
+    else if (h < 5 / 6) { r = x; g = 0; b = c; }
+    else { r = c; g = 0; b = x; }
+    return [Math.round((r + m) * 255), Math.round((g + m) * 255), Math.round((b + m) * 255)];
   }
 
   function renderPlaybackControls(glyph, selectedView, replayStep, isPlaying, replayDelay) {

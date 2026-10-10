@@ -34,7 +34,35 @@
     if (view !== "replay") stopReplay();
     state.selectedView = view;
     state.selectedSegment = segment;
+    if (view === "replay" && !segment && !state.isPlaying) {
+      const glyph = selectedGlyph();
+      if (state.replayStep >= glyph.segments.length) state.replayStep = 0;
+      state.replayFinished = false;
+      state.isPlaying = true;
+      startAutoReplayLoop();
+    }
     render();
+  }
+
+  function startAutoReplayLoop() {
+    const tick = () => {
+      try {
+        const glyph = selectedGlyph();
+        if (state.replayStep < glyph.segments.length) {
+          state.replayStep += 1;
+        } else {
+          state.isPlaying = false;
+          state.replayFinished = true;
+        }
+        render();
+      } catch (err) {
+        console.error("auto replay tick failed", err);
+      }
+      if (state.isPlaying) {
+        state.replayTimer = window.setTimeout(tick, state.replayDelay);
+      }
+    };
+    state.replayTimer = window.setTimeout(tick, state.replayDelay);
   }
 
   function stopReplay() {

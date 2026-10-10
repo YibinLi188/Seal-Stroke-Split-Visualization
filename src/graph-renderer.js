@@ -26,7 +26,8 @@
     const center = { x: 430, y: 205 };
     const nodes = relations.map((relation, index) => ({ ...relation, position: relationPosition(index, relations.length) }));
 
-    nodes.forEach(({ relation, position }) => {
+    nodes.forEach((relation) => {
+      const position = relation.position;
       const edge = svgNode("line", { x1: center.x, y1: center.y, x2: position.x, y2: position.y, class: "graph-edge" });
       svg.append(edge);
       const labelX = center.x + (position.x - center.x) * 0.53;
