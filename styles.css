@@ -83,7 +83,8 @@ h3 { font-size: 18px; }
 .glyph-item { width: 100%; min-width: 0; display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: center; gap: 9px; padding: 8px; text-align: left; border: 1px solid transparent; border-radius: 3px; color: inherit; background: transparent; }
 .glyph-item:hover { border-color: var(--line); background: #faf5eb; }
 .glyph-item.is-active { border-color: var(--teal); background: var(--teal-soft); }
-.glyph-item-mark { display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid var(--line); background: #fffdf8; font-size: 22px; line-height: 1; }
+.glyph-item-mark { display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid var(--line); background: #fffdf8; font-size: 22px; line-height: 1; overflow: hidden; }
+.glyph-item-mark img { width: 100%; height: 100%; object-fit: contain; }
 .glyph-item-copy { min-width: 0; }
 .glyph-item-copy strong, .glyph-item-copy small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .glyph-item-copy strong { font-size: 15px; }
@@ -93,28 +94,29 @@ h3 { font-size: 18px; }
 .glyph-header { margin-bottom: 16px; }
 .glyph-header h2 { font-size: 32px; }
 .glyph-identity { display: grid; gap: 6px; justify-items: end; text-align: right; font-family: "Noto Sans SC", "Microsoft YaHei", sans-serif; font-size: 12px; }
-.view-tabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 7px; border-bottom: 1px solid var(--line); }
-.view-tab { flex: 0 0 auto; padding: 6px 9px; border: 1px solid var(--line); border-radius: 3px; color: var(--muted); background: #fffdf8; font-family: "Noto Sans SC", "Microsoft YaHei", sans-serif; font-size: 12px; }
-.view-tab:hover { color: var(--ink); border-color: var(--teal); }
-.view-tab.is-active { color: #fff; border-color: var(--teal); background: var(--teal); }
-.playback-controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--line); font-family: "Noto Sans SC", "Microsoft YaHei", sans-serif; }
-.playback-controls[hidden] { display: none; }
-.playback-status { flex: 0 0 auto; display: grid; gap: 2px; }
-.playback-status span { color: var(--muted); font-size: 11px; }
-.playback-status strong { color: var(--teal); font-size: 13px; }
-.playback-actions { min-width: 0; display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 5px; }
-.playback-actions button, .playback-actions select { min-height: 30px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 3px; color: var(--ink); background: #fffdf8; font-size: 12px; }
-.playback-actions button:hover { color: #fff; border-color: var(--teal); background: var(--teal); }
-.playback-actions button:disabled { cursor: not-allowed; opacity: .45; }
-.playback-actions label { display: flex; align-items: center; gap: 4px; color: var(--muted); font-size: 11px; }
 
 .glyph-stage { position: relative; min-height: 365px; display: grid; place-items: center; margin: 16px 0 12px; overflow: hidden; border: 1px solid var(--line); background: #fdfaf3; }
 .glyph-stage img { display: block; width: min(100%, 470px); height: 340px; object-fit: contain; image-rendering: auto; }
 .glyph-stage > img[hidden] { display: none; }
-.replay-canvas { position: relative; width: min(100%, 470px); height: 340px; overflow: hidden; }
+.replay-canvas { position: absolute; inset: 0; display: grid; place-items: center; overflow: hidden; background: #fdfaf3; }
 .replay-canvas[hidden] { display: none; }
-.replay-canvas svg { display: block; width: 100%; height: 100%; }
+.replay-canvas svg { display: block; width: min(100%, 470px); height: 340px; }
 .glyph-stage p { position: absolute; right: 10px; bottom: 8px; margin: 0; padding: 4px 7px; color: var(--muted); background: rgb(255 253 248 / 90%); font-family: "Noto Sans SC", "Microsoft YaHei", sans-serif; font-size: 11px; }
+.view-tabs { display: flex; gap: 0; padding: 0 4px; margin-top: 4px; border-bottom: 1px solid var(--line); font-family: "Noto Sans SC", "Microsoft YaHei", sans-serif; }
+.view-tab { padding: 8px 18px; border: 1px solid transparent; border-bottom: 0; border-radius: 3px 3px 0 0; color: var(--muted); background: transparent; font-size: 13px; }
+.view-tab:hover { color: var(--ink); background: #faf5eb; }
+.view-tab.is-active { color: var(--teal); border-color: var(--line); background: #fffdf8; position: relative; top: 1px; padding-top: 9px; }
+.playback-controls { display: flex; align-items: center; gap: 14px; padding: 9px 12px; border-bottom: 1px solid var(--line); background: #faf6ec; font-family: "Noto Sans SC", "Microsoft YaHei", sans-serif; }
+.playback-controls[hidden] { display: none; }
+.playback-status { display: flex; align-items: baseline; gap: 8px; }
+.playback-status span { color: var(--muted); font-size: 12px; }
+.playback-status strong { color: var(--teal); font-size: 13px; font-weight: 700; }
+.playback-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-left: auto; }
+.playback-actions button, .playback-actions select { min-height: 28px; padding: 4px 7px; border: 1px solid var(--line); border-radius: 3px; color: var(--ink); background: #fffdf8; font-size: 12px; }
+.playback-actions button:hover { color: #fff; border-color: var(--teal); background: var(--teal); }
+.playback-actions button:disabled { cursor: not-allowed; opacity: .45; }
+.playback-actions button.is-active { color: #fff; border-color: var(--ochre); background: var(--ochre); }
+.playback-actions label { display: flex; align-items: center; gap: 4px; color: var(--muted); font-size: 11px; }
 .metric-strip { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border: 1px solid var(--line); }
 .metric-strip div { min-width: 0; padding: 10px 11px; border-right: 1px solid var(--line); }
 .metric-strip div:last-child { border-right: 0; }
@@ -135,26 +137,54 @@ h3 { font-size: 18px; }
 .segment-copy small { margin-top: 4px; color: var(--muted); font-family: "Noto Sans SC", "Microsoft YaHei", sans-serif; font-size: 11px; }
 
 .prose { margin: 9px 0 0; color: #504d47; font-size: 15px; line-height: 1.85; }
-.source-details { margin: 12px 0 0; border-top: 1px solid var(--line); font-family: "Noto Sans SC", "Microsoft YaHei", sans-serif; font-size: 12px; }
+.mark-text { margin-top: 12px; padding: 9px 12px; border-left: 3px solid var(--teal); background: var(--teal-soft); color: #1f484d; font-weight: 600; font-size: 14px; line-height: 1.7; }
+.mark-text:empty { display: none; }
+.meaning-block { margin-top: 14px; padding: 10px 12px; border: 1px solid var(--line); border-left: 3px solid var(--ochre); border-radius: 2px; background: #fdfaf3; }
+.meaning-block[hidden] { display: none; }
+.meaning-block h3 { margin-bottom: 6px; color: var(--ochre); font-size: 12px; letter-spacing: .08em; font-family: "Noto Sans SC", "Microsoft YaHei", sans-serif; }
+.meaning-block p { margin: 0; color: #403c34; }
+.source-details { margin: 14px 0 0; border-top: 1px solid var(--line); font-family: "Noto Sans SC", "Microsoft YaHei", sans-serif; font-size: 12px; }
 .source-details div { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--line); }
+.source-details div:last-child { border-bottom: 0; }
 .source-details dt { color: var(--muted); }
 .source-details dd { min-width: 0; margin: 0; overflow-wrap: anywhere; }
-.component-list { display: grid; gap: 6px; margin-top: 12px; }
-.component-item { padding: 8px 9px; border-left: 3px solid var(--ochre); background: #f9f4e9; }
-.component-item strong, .component-item span { display: block; }
-.component-item strong { font-size: 14px; }
-.component-item span { margin-top: 2px; color: var(--muted); font-family: "Noto Sans SC", "Microsoft YaHei", sans-serif; font-size: 11px; }
+.component-list { display: grid; gap: 8px; margin-top: 12px; }
+.component-card { padding: 9px 11px; border: 1px solid var(--line); border-left: 3px solid var(--ochre); border-radius: 2px; background: #fffdf8; }
+.component-card .component-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.component-card .component-name { font-size: 16px; line-height: 1.2; }
+.component-card .component-type { flex: 0 0 auto; padding: 2px 6px; border-radius: 2px; color: #fff; font-family: "Noto Sans SC", "Microsoft YaHei", sans-serif; font-size: 10px; line-height: 1.4; letter-spacing: .04em; background: var(--muted); white-space: nowrap; }
+.component-card .component-comment { margin: 6px 0 0; color: #5a554b; font-size: 13px; line-height: 1.7; }
+.component-card .component-comment:empty { display: none; }
+/* 五种构件类型配色 */
+.component-card.part-形旁 { border-left-color: #7faa86; background: #eff6f1; }
+.component-card.part-形旁 .component-type { background: #4f8563; }
+.component-card.part-声旁 { border-left-color: #c8a96a; background: #fdf6e7; }
+.component-card.part-声旁 .component-type { background: #a87c2a; }
+.component-card.part-会意构件 { border-left-color: #b07ec0; background: #f7eef9; }
+.component-card.part-会意构件 .component-type { background: #8c569e; }
+.component-card.part-独体字 { border-left-color: #7c8fa8; background: #eef1f6; }
+.component-card.part-独体字 .component-type { background: #4f6179; }
+.component-card.part-独体部首 { border-left-color: #9e4034; background: #f7e9e6; }
+.component-card.part-独体部首 .component-type { background: var(--red); }
 .similar-section { min-height: 0; }
 .relation-filter { width: 88px; }
 .relation-filter select { padding: 5px 7px; font-size: 12px; }
 .similar-list { display: grid; gap: 5px; max-height: 250px; margin-top: 10px; overflow-y: auto; padding-right: 3px; }
 .similar-item { min-width: 0; display: grid; grid-template-columns: 31px minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 6px; text-align: left; border: 1px solid var(--line); border-radius: 3px; color: inherit; background: #fffdf8; }
 .similar-item:hover { border-color: var(--teal); background: var(--teal-soft); }
-.similar-mark { display: grid; place-items: center; width: 31px; height: 31px; background: #f4eddf; font-size: 19px; }
+.similar-mark { display: grid; place-items: center; width: 31px; height: 31px; background: #f4eddf; font-size: 19px; overflow: hidden; }
+.similar-mark img { width: 100%; height: 100%; object-fit: contain; }
 .similar-item strong, .similar-item small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .similar-item strong { font-size: 13px; }
 .similar-item small, .similar-count { margin-top: 2px; color: var(--muted); font-family: "Noto Sans SC", "Microsoft YaHei", sans-serif; font-size: 11px; }
 .similar-count { white-space: nowrap; }
+/* 三类相似关系配色 */
+.similar-item.relation-phonetic { border-color: #c8a96a; background: #fdf6e7; }
+.similar-item.relation-phonetic small { color: #8a6a26; font-weight: 500; }
+.similar-item.relation-semantic { border-color: #7faa86; background: #eff6f1; }
+.similar-item.relation-semantic small { color: #3e6e4d; font-weight: 500; }
+.similar-item.relation-radical  { border-color: #9aa6c4; background: #f0f2fa; }
+.similar-item.relation-radical  small { color: #4a567f; font-weight: 500; }
 .empty-state { margin: 16px 0; color: var(--muted); font-family: "Noto Sans SC", "Microsoft YaHei", sans-serif; font-size: 13px; line-height: 1.6; }
 .empty-state.compact { margin: 0; padding: 9px; background: #f9f4e9; }
 
@@ -172,6 +202,7 @@ h3 { font-size: 18px; }
 .graph-node-center circle { fill: #263c3b; stroke: #263c3b; }
 .graph-mark { fill: var(--ink); font-family: "Noto Serif SC", "Songti SC", SimSun, serif; font-size: 36px; pointer-events: none; }
 .graph-node-center .graph-mark { fill: #fff; font-size: 42px; }
+.graph-mark-img { pointer-events: none; }
 .graph-count { fill: #514d45; font-family: "Noto Sans SC", "Microsoft YaHei", sans-serif; font-size: 13px; font-weight: 700; pointer-events: none; }
 .graph-node-center .graph-count { fill: var(--teal); }
 .graph-legend { margin: 10px 0 0; color: var(--muted); font-family: "Noto Sans SC", "Microsoft YaHei", sans-serif; font-size: 12px; }
@@ -197,8 +228,8 @@ h3 { font-size: 18px; }
   .record-panel { grid-column: auto; grid-template-columns: 1fr; gap: 22px; }
   .glyph-stage { min-height: 290px; }
   .glyph-stage img { height: 270px; }
-  .replay-canvas { height: 270px; }
-  .playback-controls { align-items: flex-start; flex-direction: column; }
+  .replay-canvas svg { height: 270px; }
+  .playback-controls { top: 6px; right: 6px; left: 6px; padding: 5px 7px; gap: 6px; }
   .playback-actions { justify-content: flex-start; }
   .metric-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .metric-strip div:nth-child(2) { border-right: 0; }

@@ -1,9 +1,4 @@
 (() => {
-  const VIEW_MODES = [
-    ["original", "原字", "观察原始字形"],
-    ["replay", "逐笔书写", "按顺序观看字形写成"],
-    ["composite", "笔画拆解", "观察字形由哪些笔画组成"],
-  ];
   const SVG_NS = "http://www.w3.org/2000/svg";
 
   function svgElement(tag, attributes = {}) {
@@ -66,7 +61,7 @@
       button.type = "button";
       button.className = `glyph-item${glyph.id === selectedId ? " is-active" : ""}`;
       button.innerHTML = `
-        <span class="glyph-item-mark">${escapeHtml(glyph.mark)}</span>
+        <span class="glyph-item-mark">${window.renderXiaozhuanChar(glyph.mark, { className: 'xiaozhuan-mark', boxStyle: 'max-width:32px; max-height:32px; object-fit:contain; display:block;' })}</span>
         <span class="glyph-item-copy"><strong>${escapeHtml(glyph.title)}</strong><small>${glyph.metrics.segmentCount} 笔</small></span>
         <span class="glyph-item-id">${escapeHtml(glyph.sourceId)}</span>`;
       button.addEventListener("click", () => onSelect(glyph.id));
@@ -77,31 +72,66 @@
     }
   }
 
-  function renderTabs(glyph, selectedView, selectedSegment, onViewChange) {
-    const container = document.querySelector("#viewTabs");
-    container.replaceChildren();
-    VIEW_MODES.forEach(([key, label, description]) => {
+  /**
+   * 观察方式切换标签（原字 / 笔画拆解）
+   */
+  function renderTabs(selectedView, onViewChange) {
+    const tabs = document.querySelector("#viewTabs");
+    const tabsData = [
+      { view: "original", label: "原字" },
+      { view: "composite", label: "笔画拆解" },
+    ];
+    tabs.replaceChildren();
+    tabsData.forEach((tabData) => {
       const button = document.createElement("button");
       button.type = "button";
-      button.role = "tab";
-      button.className = `view-tab${selectedView === key && !selectedSegment ? " is-active" : ""}`;
-      button.textContent = label;
-      button.title = description;
-      button.addEventListener("click", () => onViewChange(key, null));
-      container.append(button);
+      button.className = `view-tab${selectedView === tabData.view ? " is-active" : ""}`;
+      button.dataset.view = tabData.view;
+      button.textContent = tabData.label;
+      button.addEventListener("click", () => onViewChange(tabData.view));
+      tabs.append(button);
     });
   }
 
-  function renderImage(glyph, selectedView, selectedSegment, replayStep, replayFinished) {
+  /**
+   * 单一字形舞台渲染
+   *   - 原字视图：默认显示原字；逐笔书写时 canvas 浮在原字之上播放
+   *   - 笔画拆解视图：显示按笔着色的原字彩图
+   *   - 选中笔画：显示该单笔（两种视图都生效）
+   */
+  function renderImage(glyph, state) {
     const image = document.querySelector("#glyphImage");
     const replayCanvas = document.querySelector("#replayCanvas");
     const caption = document.querySelector("#imageCaption");
-    const isReplay = selectedView === "replay" && !selectedSegment;
-    const isComposite = selectedView === "composite" && !selectedSegment;
-    image.hidden = isReplay;
-    replayCanvas.hidden = !isReplay;
+    const { selectedSegment, selectedView, replayStep, replayFinished, isPlaying } = state;
+    const inReplay = isPlaying || replayStep > 0 || replayFinished;
 
-    if (isReplay) {
+    // 单笔查看
+    if (selectedSegment) {
+      image.hidden = false;
+      image.src = selectedSegment.image;
+      image.alt = `${glyph.title} 的第 ${selectedSegment.id} 笔`;
+      replayCanvas.hidden = true;
+      replayCanvas.replaceChildren();
+      caption.textContent = `第 ${selectedSegment.id} 笔`;
+      return;
+    }
+
+    // 笔画拆解视图：image 切到 composite
+    if (selectedView === "composite") {
+      image.hidden = false;
+      image.src = glyph.assets.composite;
+      image.alt = `${glyph.title}：按笔着色的原字`;
+      replayCanvas.hidden = true;
+      replayCanvas.replaceChildren();
+      caption.textContent = "按笔着色的原字彩图";
+      return;
+    }
+
+    // 原字视图：逐笔书写时 canvas 浮在原字之上
+    if (inReplay) {
+      image.hidden = true;
+      replayCanvas.hidden = false;
       replayCanvas.replaceChildren();
       const width = glyph.canvas?.width || 80;
       const height = glyph.canvas?.height || 80;
@@ -117,16 +147,13 @@
 
       if (replayFinished) {
         svg.append(svgElement("image", { href: original, x: 0, y: 0, width, height }));
-        caption.textContent = "已完成书写，恢复为原始字形";
+        caption.textContent = "书写完成，回到原字";
       } else {
         const maskId = `replay-mask-${glyph.sourceId}`;
         const defs = svgElement("defs");
         const mask = svgElement("mask", {
           id: maskId,
-          x: 0,
-          y: 0,
-          width,
-          height,
+          x: 0, y: 0, width, height,
           maskUnits: "userSpaceOnUse",
           maskContentUnits: "userSpaceOnUse",
         });
@@ -148,38 +175,24 @@
         defs.append(mask);
         svg.append(defs, svgElement("image", {
           href: original,
-          x: 0,
-          y: 0,
-          width,
-          height,
+          x: 0, y: 0, width, height,
           mask: `url(#${maskId})`,
         }));
         caption.textContent = replayStep
           ? `正在书写第 ${replayStep} 笔`
-          : "从第一笔开始书写";
+          : "准备播放：点击「播放」开始逐笔书写";
       }
       replayCanvas.append(svg);
       return;
     }
 
-    if (isComposite) {
-      // 笔画拆解视图：直接显示离线生成好的按笔着色原字彩图（strokes.png）
-      image.src = glyph.assets.composite;
-      image.alt = `${glyph.title}：按笔着色的原字`;
-      caption.textContent = "观察字形由哪些笔画组成";
-      return;
-    }
-
-    if (selectedSegment) {
-      image.src = selectedSegment.image;
-      image.alt = `${glyph.title} 的第 ${selectedSegment.id} 笔`;
-      caption.textContent = `第 ${selectedSegment.id} 笔`;
-      return;
-    }
-    const view = VIEW_MODES.find(([key]) => key === selectedView) || VIEW_MODES[0];
-    image.src = glyph.assets[view[0]];
-    image.alt = `${glyph.title}：${view[1]}`;
-    caption.textContent = view[2];
+    // 默认：原字
+    image.hidden = false;
+    image.src = glyph.assets.original;
+    image.alt = `${glyph.title} 的原字`;
+    replayCanvas.hidden = true;
+    replayCanvas.replaceChildren();
+    caption.textContent = "原字";
   }
 
   // 每一笔分配一种可区分的颜色；笔画多于预设色数时用黄金角继续生成
@@ -220,14 +233,16 @@
     return [Math.round((r + m) * 255), Math.round((g + m) * 255), Math.round((b + m) * 255)];
   }
 
-  function renderPlaybackControls(glyph, selectedView, replayStep, isPlaying, replayDelay) {
+  function renderPlaybackControls(glyph, state) {
     const controls = document.querySelector("#playbackControls");
-    controls.hidden = selectedView !== "replay";
+    // 仅在原字视图显示逐笔书写控制条
+    controls.hidden = state.selectedView !== "original";
     if (controls.hidden) return;
+    const { replayStep, isPlaying, replayDelay, selectedSegment } = state;
     document.querySelector("#replayProgress").textContent = `${replayStep} / ${glyph.segments.length} 笔`;
-    document.querySelector("#replayPlay").textContent = isPlaying ? "暂停" : "播放";
-    document.querySelector("#replayPrevious").disabled = replayStep === 0;
-    document.querySelector("#replayNext").disabled = replayStep >= glyph.segments.length;
+    document.querySelector("#replayPlay").textContent = isPlaying ? "❚❚ 暂停" : "▶ 播放";
+    document.querySelector("#replayPrevious").disabled = !!selectedSegment || replayStep === 0;
+    document.querySelector("#replayNext").disabled = !!selectedSegment || replayStep >= glyph.segments.length;
     document.querySelector("#replaySpeed").value = String(replayDelay);
   }
 
@@ -258,35 +273,107 @@
 
   function renderRecord(glyph) {
     setText("#glyphSource", `${glyph.source.collection} · ${glyph.source.section}`);
-    setText("#glyphTitle", glyph.title);
-    setText("#glyphDefinition", glyph.definition);
-    setText("#formationNote", glyph.formation.includes("待") ? "这部分结构说明仍在整理中。" : glyph.formation);
+    // 标题也用小篆图渲染（如：尚 → 小篆"尚"）
+    const titleEl = document.querySelector("#glyphTitle");
+    if (titleEl) {
+      titleEl.innerHTML = window.renderXiaozhuanChar(glyph.title, { className: 'xiaozhuan-title', boxStyle: 'max-height:54px; max-width:54px; object-fit:contain; display:inline-block; vertical-align:middle;' });
+    }
+
+    const xz = window.renderXiaozhuan;
+
+    // 1. 标题行 mark_text(支持小篆标记)
+    const markEl = document.querySelector("#glyphMarkText");
+    if (markEl) {
+      if (glyph.mark_text && xz) markEl.innerHTML = xz(glyph.mark_text);
+      else if (markEl) markEl.textContent = "";
+    }
+
+    // 2. 本义（支持小篆标记）
+    const originalMeaning = glyph.original_meaning || "";
+    const origEl = document.querySelector("#glyphOriginalMeaning");
+    if (origEl) {
+      if (originalMeaning) {
+        origEl.innerHTML = xz ? xz(originalMeaning) : escapeHtml(originalMeaning);
+      } else {
+        origEl.textContent = "（本义待补）";
+      }
+    }
+    const originalBlock = document.querySelector("#glyphOriginalMeaningBlock");
+    if (originalBlock) originalBlock.hidden = !originalMeaning;
+
+    // 3. 字义拓展（空字符串时整个块整体隐藏；支持小篆标记）
+    const extendBlock = document.querySelector("#glyphMeaningExtendBlock");
+    const extendEl = document.querySelector("#glyphMeaningExtend");
+    const extend = glyph.meaning_extend || "";
+    if (extendBlock) {
+      if (extend.trim()) {
+        extendBlock.hidden = false;
+        if (extendEl) extendEl.innerHTML = xz ? xz(extend) : escapeHtml(extend);
+      } else {
+        extendBlock.hidden = true;
+      }
+    }
+
+    // 4. 来源明细
     document.querySelector("#sourceDetails").innerHTML = [
       ["材料", glyph.source.collection],
       ["分部", glyph.source.section],
     ].map(([term, definition]) => `<div><dt>${escapeHtml(term)}</dt><dd>${escapeHtml(definition)}</dd></div>`).join("");
 
-    const components = document.querySelector("#componentList");
-    if (!glyph.components.length) {
-      components.innerHTML = '<p class="empty-state compact">这一字形的部件说明仍在整理中。</p>';
-      return;
+    // 5. 构形解析总起 structure_desc(支持小篆标记)
+    const descEl = document.querySelector("#structureDesc");
+    if (descEl) {
+      if (glyph.structure_desc && xz) descEl.innerHTML = xz(glyph.structure_desc);
+      else descEl.textContent = glyph.structure_desc || "";
     }
-    components.innerHTML = glyph.components.map((component) => `
-      <div class="component-item"><strong>${escapeHtml(component.name)}</strong><span>${escapeHtml(component.kind)} · ${escapeHtml(component.status)}</span></div>`).join("");
+
+    // 6. 构件卡片：parts[] / part_type[] / part_comment[]（comment 支持小篆标记）
+    const components = document.querySelector("#componentList");
+    if (Array.isArray(glyph.parts) && glyph.parts.length) {
+      components.innerHTML = glyph.parts.map((name, i) => {
+        const type = (glyph.part_type && glyph.part_type[i]) || "";
+        const comment = (glyph.part_comment && glyph.part_comment[i]) || "";
+        const cls = type ? ` part-${escapeHtml(type)}` : "";
+        const commentHtml = comment
+          ? `<p class="component-comment">${xz ? xz(comment) : escapeHtml(comment)}</p>`
+          : "";
+        return `
+          <div class="component-card${cls}">
+            <div class="component-head">
+              <strong class="component-name">${window.renderXiaozhuanChar(name)}</strong>
+              ${type ? `<span class="component-type">${escapeHtml(type)}</span>` : ""}
+            </div>
+            ${commentHtml}
+          </div>`;
+      }).join("");
+    } else if (Array.isArray(glyph.components) && glyph.components.length) {
+      // 兼容旧 components 数据
+      components.innerHTML = glyph.components.map((component) => `
+        <div class="component-card">
+          <div class="component-head">
+            <strong class="component-name">${window.renderXiaozhuanChar(component.name)}</strong>
+            <span class="component-type">${escapeHtml(component.kind)}</span>
+          </div>
+          <p class="component-comment">${xz ? xz(component.status) : escapeHtml(component.status)}</p>
+        </div>`).join("");
+    } else {
+      components.innerHTML = '<p class="empty-state compact">这一字形的部件说明仍在整理中。</p>';
+    }
   }
 
   function renderSimilar(relations, onSelect) {
     const container = document.querySelector("#similarList");
     container.replaceChildren();
     if (!relations.length) {
-      container.innerHTML = '<p class="empty-state compact">当前筛选下没有足够接近的候选字形。</p>';
+      container.innerHTML = '<p class="empty-state compact">当前筛选下没有满足同声旁 / 同形旁 / 同部首任一条件的候选字形。</p>';
       return;
     }
     relations.forEach((relation) => {
       const button = document.createElement("button");
       button.type = "button";
-      button.className = "similar-item";
-      button.innerHTML = `<span class="similar-mark">${escapeHtml(relation.glyph.mark)}</span><span><strong>${escapeHtml(relation.glyph.title)}</strong><small>${escapeHtml(relation.label)}</small></span><span class="similar-count">${relation.glyph.metrics.segmentCount} 段</span>`;
+      button.className = `similar-item relation-${relation.type}`;
+      button.dataset.type = relation.type;
+      button.innerHTML = `<span class="similar-mark">${window.renderXiaozhuanChar(relation.glyph.mark, { className: 'xiaozhuan-mark', boxStyle: 'max-width:27px; max-height:27px; object-fit:contain; display:block;' })}</span><span><strong>${escapeHtml(relation.glyph.title)}</strong><small>${escapeHtml(relation.label)}</small></span><span class="similar-count">${relation.glyph.metrics.segmentCount} 段</span>`;
       button.addEventListener("click", () => onSelect(relation.glyph.id));
       container.append(button);
     });

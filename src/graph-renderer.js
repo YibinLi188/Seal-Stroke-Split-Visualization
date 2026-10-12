@@ -13,6 +13,33 @@
     parent.append(label);
   }
 
+  /**
+   * 在 SVG 节点里绘制一个字符的小篆图（找不到时回退为 text）。
+   * @param {SVGGElement} parent
+   * @param {string} ch
+   * @param {number} cx 中心 x
+   * @param {number} cy 中心 y
+   * @param {number} size 边长（px）
+   * @param {string} [textClassName] 回退文字的 class
+   */
+  function addXiaozhuanMark(parent, ch, cx, cy, size, textClassName) {
+    const src = window.xiaozhuanSrc ? window.xiaozhuanSrc(ch) : null;
+    if (src) {
+      const img = svgNode("image", {
+        href: src,
+        x: cx - size / 2,
+        y: cy - size / 2,
+        width: size,
+        height: size,
+        preserveAspectRatio: "xMidYMid meet",
+        class: "graph-mark-img",
+      });
+      parent.append(img);
+    } else {
+      addText(parent, String(ch), cx, cy + 8, textClassName || "graph-mark");
+    }
+  }
+
   function relationPosition(index, total) {
     const radiusX = total > 4 ? 278 : 244;
     const radiusY = total > 4 ? 138 : 118;
@@ -38,7 +65,7 @@
     nodes.forEach(({ glyph: related, position }) => {
       const group = svgNode("g", { class: "graph-node graph-node-related", tabindex: "0", role: "button", "aria-label": `查看 ${related.title}` });
       group.append(svgNode("circle", { cx: position.x, cy: position.y, r: 48 }));
-      addText(group, related.mark, position.x, position.y + 8, "graph-mark");
+      addXiaozhuanMark(group, related.mark, position.x, position.y, 60, "graph-mark");
       addText(group, `${related.metrics.segmentCount} 笔`, position.x, position.y + 73, "graph-count");
       const activate = () => onSelect(related.id);
       group.addEventListener("click", activate);
@@ -53,7 +80,7 @@
 
     const centerGroup = svgNode("g", { class: "graph-node graph-node-center" });
     centerGroup.append(svgNode("circle", { cx: center.x, cy: center.y, r: 63 }));
-    addText(centerGroup, glyph.mark, center.x, center.y + 10, "graph-mark");
+    addXiaozhuanMark(centerGroup, glyph.mark, center.x, center.y, 78, "graph-mark-center");
     addText(centerGroup, `${glyph.metrics.segmentCount} 笔`, center.x, center.y + 91, "graph-count");
     svg.append(centerGroup);
     container.append(svg);
