@@ -153,21 +153,31 @@
       <span>本网站用于小篆字形的观察、学习和讨论，内容将持续完善。</span>
     </footer>
 
+    <!--
+      小篆索引加载顺序：
+      1) <script src> 方式（file:// 与 http:// 都能用），window.__xiaozhuanData 同步就绪
+      2) 若上面失败（脚本不存在），下面的 XHR / fetch 异步回退会补救（http:// 下有效）
+    -->
+    <script src="./data/xiaozhuan-index.js"></script>
     <script>
-      // 同步加载小篆索引，让释义里 {{xiaozhuan:字名}} 能直接渲染
-      try {
-        var xhr = new XMLHttpRequest();
-        xhr.open('GET', './data/xiaozhuan-index.json', false);
-        xhr.send();
-        window.__xiaozhuanData = JSON.parse(xhr.responseText);
-      } catch (e) {
-        // 同步 XHR 失败时（file:// 等），尝试 fetch
-        console.error('xiaozhuan index sync load failed, fallback to fetch', e);
-        window.__xiaozhuanIndexFallback = fetch('./data/xiaozhuan-index.json')
-          .then(function (r) { return r.json(); })
-          .then(function (j) { window.__xiaozhuanData = j; window.dispatchEvent(new Event('xiaozhuan-index-ready')); })
-          .catch(function (e2) { console.error('xiaozhuan index async load failed', e2); });
-      }
+      (function () {
+        if (window.__xiaozhuanData) return; // 已被脚本标签加载
+        try {
+          var xhr = new XMLHttpRequest();
+          xhr.open('GET', './data/xiaozhuan-index.json', false);
+          xhr.send();
+          window.__xiaozhuanData = JSON.parse(xhr.responseText);
+        } catch (e) {
+          console.error('xiaozhuan index sync XHR failed, fallback to fetch', e);
+          fetch('./data/xiaozhuan-index.json')
+            .then(function (r) { return r.json(); })
+            .then(function (j) {
+              window.__xiaozhuanData = j;
+              window.dispatchEvent(new Event('xiaozhuan-index-ready'));
+            })
+            .catch(function (e2) { console.error('xiaozhuan index async load failed', e2); });
+        }
+      })();
     </script>
     <script src="./src/render_xiaozhuan.js"></script>
     <script src="./data/glyphs.js"></script>
