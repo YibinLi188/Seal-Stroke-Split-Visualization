@@ -106,13 +106,55 @@
     const { selectedSegment, selectedView, replayStep, replayFinished, isPlaying } = state;
     const inReplay = isPlaying || replayStep > 0 || replayFinished;
 
-    // 单笔查看
+    // 单笔查看：整字 ghost 背景 + 选中这一笔单独亮起（和播放笔画同一套 SVG mask 逻辑）
     if (selectedSegment) {
-      image.hidden = false;
-      image.src = selectedSegment.image;
-      image.alt = `${glyph.title} 的第 ${selectedSegment.id} 笔`;
-      replayCanvas.hidden = true;
+      image.hidden = true;
+      replayCanvas.hidden = false;
       replayCanvas.replaceChildren();
+      const width = glyph.canvas?.width || 80;
+      const height = glyph.canvas?.height || 80;
+      const svg = svgElement("svg", {
+        viewBox: `0 0 ${width} ${height}`,
+        preserveAspectRatio: "xMidYMid meet",
+        role: "img",
+        "aria-label": `${glyph.title} 第 ${selectedSegment.id} 笔`,
+      });
+      // 底图：原字视图用原字，笔画拆解视图用按笔着色的彩图
+      const baseAsset = selectedView === "composite" ? glyph.assets.composite : glyph.assets.original;
+      const base = encodeURI(baseAsset);
+      // 整字 ghost 背景
+      svg.append(svgElement("image", { href: base, x: 0, y: 0, width, height, opacity: "0.1" }));
+      // mask：只有选中那一笔是白色区域
+      const maskId = `segment-mask-${glyph.sourceId}-${selectedSegment.id}`;
+      const defs = svgElement("defs");
+      const mask = svgElement("mask", {
+        id: maskId,
+        x: 0, y: 0, width, height,
+        maskUnits: "userSpaceOnUse",
+        maskContentUnits: "userSpaceOnUse",
+      });
+      mask.append(svgElement("rect", { x: 0, y: 0, width, height, fill: "black" }));
+      const pathData = strokePath(selectedSegment.points);
+      if (pathData) {
+        const path = svgElement("path", {
+          d: pathData,
+          fill: "none",
+          stroke: "white",
+          "stroke-width": revealWidth(selectedSegment),
+          "stroke-linecap": "round",
+          "stroke-linejoin": "round",
+        });
+        mask.append(path);
+        // 与播放笔画保持一致的"亮起"动画
+        animateMaskPath(path);
+      }
+      defs.append(mask);
+      svg.append(defs, svgElement("image", {
+        href: base,
+        x: 0, y: 0, width, height,
+        mask: `url(#${maskId})`,
+      }));
+      replayCanvas.append(svg);
       caption.textContent = `第 ${selectedSegment.id} 笔`;
       return;
     }
